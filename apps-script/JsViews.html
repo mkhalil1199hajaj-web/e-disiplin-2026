@@ -1,0 +1,490 @@
+<script>
+'use strict';
+/* =====================================================================
+ * JsViews — dashboard, senarai, butiran laporan, tindakan, statistik,
+ *           notifikasi dan halaman muat turun PDF
+ * ===================================================================== */
+
+function statCard(label, value, icon, color, sub) {
+  const c = { royal: 'text-royal-600 bg-royal-100', gold: 'text-gold-600 bg-gold-100', navy: 'text-navy-800 bg-slate-100', green: 'text-emerald-700 bg-emerald-50', red: 'text-red-700 bg-red-50', orange: 'text-orange-700 bg-orange-50' }[color] || 'text-royal-600 bg-royal-100';
+  return `<div class="card stat p-4 sm:p-5 ${c.split(' ')[0]}">
+    <div class="flex items-start justify-between gap-2">
+      <p class="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wide leading-snug">${esc(label)}</p>
+      <span class="h-9 w-9 shrink-0 rounded-xl flex items-center justify-center ${c}"><i data-lucide="${icon}" class="h-[18px] w-[18px]"></i></span>
+    </div>
+    <p class="mt-2 text-2xl sm:text-3xl font-extrabold text-navy-900">${esc(value)}</p>
+    ${sub ? `<p class="text-xs text-slate-500 mt-1">${esc(sub)}</p>` : ''}</div>`;
+}
+
+function reportTable(rows, opts = {}) {
+  if (!rows || !rows.length) return emptyState(opts.emptyTitle || 'Tiada laporan', opts.emptySub || '');
+  const desk = `<div class="hidden md:block overflow-x-auto"><table class="tbl"><thead><tr>
+      <th>ID Laporan</th><th>Murid</th><th>Kelas</th><th>Kesalahan</th><th>Tarikh</th>${opts.pelapor !== false ? '<th>Pelapor</th>' : ''}<th>Status</th></tr></thead><tbody>
+    ${rows.map(r => `<tr data-id="${esc(r.reportId)}">
+      <td class="font-semibold text-royal-700 whitespace-nowrap">${esc(r.reportId)}</td>
+      <td><p class="font-semibold text-navy-900">${esc(r.namaMurid || '(belum diisi)')}</p><p class="text-xs text-slate-500">${esc(r.studentId)}</p></td>
+      <td class="whitespace-nowrap">${esc(kelasLabel(r.tingkatan, r.kelas))}</td>
+      <td><p>${esc(r.kategori || '-')}</p><div class="mt-1">${tahapBadge(r.tahap)}</div></td>
+      <td class="whitespace-nowrap">${fmtDate(r.tarikhKejadian)}</td>
+      ${opts.pelapor !== false ? `<td class="text-xs">${esc(r.namaPelapor)}</td>` : ''}
+      <td>${badge(r.status)}</td></tr>`).join('')}</tbody></table></div>`;
+  const mobile = `<div class="md:hidden divide-y divide-slate-100">${rows.map(r => `
+    <button data-id="${esc(r.reportId)}" class="w-full text-left py-3 px-1">
+      <div class="flex items-center justify-between gap-2"><span class="text-xs font-bold text-royal-700">${esc(r.reportId)}</span>${badge(r.status)}</div>
+      <p class="mt-1 font-semibold text-navy-900">${esc(r.namaMurid || '(belum diisi)')} <span class="font-normal text-slate-500 text-sm">· ${esc(kelasLabel(r.tingkatan, r.kelas))}</span></p>
+      <div class="mt-1 flex items-center gap-2 text-xs text-slate-500"><span>${esc(r.kategori || '-')}</span>${tahapBadge(r.tahap)}<span class="ml-auto">${fmtDate(r.tarikhKejadian)}</span></div>
+    </button>`).join('')}</div>`;
+  return desk + mobile;
+}
+function bindRows(root) { $$('[data-id]', root).forEach(el => el.addEventListener('click', () => go('detail', { id: el.dataset.id }))); }
+
+/* =====================================================================
+ * DASHBOARD
+ * ===================================================================== */
+VIEWS.dashboard = async (main) => {
+  setTitle('Dashboard', `Selamat datang, ${S.user.nama} · ${ROLE_LABEL[S.user.role]}`);
+  const d = await callT('getDashboardStats', {});
+  const role = S.user.role;
+
+  if (d.scope === 'SENDIRI') {
+    main.innerHTML = `
+      <div class="rounded-2xl bg-navy-900 text-white p-5 sm:p-7 relative overflow-hidden">
+        <div class="absolute inset-0 grid-pattern opacity-60"></div>
+        <div class="relative flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div><p class="text-gold-400 text-xs font-bold tracking-[0.2em]">GURU PELAPOR</p>
+          <h2 class="mt-1 text-xl sm:text-2xl font-extrabold">Ada kes disiplin untuk dilaporkan?</h2>
+          <p class="text-sm text-white/70 mt-1">Laporan anda dihantar terus kepada Guru Disiplin untuk tindakan.</p></div>
+          <button class="btn btn-gold py-3 px-5" onclick="go('buat')"><i data-lucide="file-plus-2"></i> BUAT LAPORAN BAHARU</button>
+        </div></div>
+      <div class="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        ${statCard('Jumlah laporan saya', d.mine.jumlah, 'files', 'navy')}
+        ${statCard('Dalam semakan / tindakan', d.mine.dalamProses, 'clock', 'gold')}
+        ${statCard('Dipulangkan', d.mine.dipulangkan, 'rotate-ccw', 'red', 'Perlu pembetulan')}
+        ${statCard('Selesai', d.mine.selesai, 'circle-check', 'green')}
+      </div>
+      <div class="card mt-5"><div class="card-h"><h3>Sejarah laporan saya</h3><button class="btn btn-ghost btn-sm" onclick="go('senarai')">Lihat semua <i data-lucide="chevron-right"></i></button></div>
+        <div class="card-b pt-2" id="dash-list">${reportTable(d.recent, { pelapor: false, emptyTitle: 'Belum ada laporan', emptySub: 'Klik "Buat Laporan Baharu" untuk mula.' })}</div></div>`;
+    bindRows($('#dash-list'));
+    return;
+  }
+
+  const s = d.stats;
+  let cards = '', panels = '', charts = [];
+  if (role === 'ADMIN') {
+    cards = statCard('Pengguna berdaftar', d.admin.users, 'users', 'navy', d.admin.aktif + ' aktif')
+      + statCard('Menunggu kelulusan', d.admin.menunggu, 'user-plus', 'gold')
+      + statCard('Jumlah laporan', s.total, 'files', 'royal')
+      + statCard('Kes selesai', s.selesai, 'circle-check', 'green')
+      + statCard('Belum selesai', s.tertunggak, 'clock', 'orange');
+    panels = `<div class="grid lg:grid-cols-5 gap-5 mt-5">
+      <div class="card lg:col-span-3"><div class="card-h"><h3>Statistik kategori kesalahan (${d.year})</h3></div><div class="card-b"><div class="chart-box"><canvas id="c-kat"></canvas></div></div></div>
+      <div class="card lg:col-span-2"><div class="card-h"><h3>Aktiviti sistem terkini</h3><button class="btn btn-ghost btn-sm" onclick="go('tetapan',{tab:'audit'})">Audit log</button></div>
+        <div class="card-b pt-1">${(d.admin.recentAudit || []).map(a => `<div class="py-2 border-b border-slate-100 last:border-0">
+          <div class="flex items-center justify-between gap-2"><span class="text-xs font-bold text-navy-900">${esc(a.aktiviti)}</span><span class="text-[11px] text-slate-400">${fmtDateTime(a.masa)}</span></div>
+          <p class="text-xs text-slate-500 truncate">${esc(a.email)} ${a.reportId ? '· ' + esc(a.reportId) : ''} · <span class="${a.result === 'BERJAYA' ? 'text-emerald-600' : 'text-red-600'}">${esc(a.result)}</span></p></div>`).join('') || emptyState('Tiada aktiviti')}</div></div></div>
+      ${d.admin.menunggu ? `<div class="mt-5 rounded-xl bg-gold-100 border border-gold-200 p-4 flex items-center gap-3"><i data-lucide="user-plus" class="h-5 w-5 text-gold-600"></i><p class="text-sm flex-1"><b>${d.admin.menunggu}</b> pendaftaran guru menunggu kelulusan anda.</p><button class="btn btn-navy btn-sm" onclick="go('pengguna')">Semak</button></div>` : ''}`;
+    charts.push(() => katChart('c-kat', s.byKategori, 'bar'));
+  } else if (role === 'GURU_DISIPLIN') {
+    cards = statCard('Laporan baharu', s.byStatus.DIHANTAR || 0, 'inbox', 'royal', 'Belum disemak')
+      + statCard('Dalam semakan', s.byStatus.DALAM_SEMAKAN || 0, 'search', 'gold')
+      + statCard('Dalam tindakan', s.byStatus.DALAM_TINDAKAN || 0, 'gavel', 'orange')
+      + statCard('Kes selesai', s.selesai, 'circle-check', 'green')
+      + statCard('Kes serius terbuka', s.berat, 'triangle-alert', 'red', 'Tahap Berat');
+    panels = `<div class="grid lg:grid-cols-2 gap-5 mt-5">
+      <div class="card"><div class="card-h"><h3 class="flex items-center gap-2"><i data-lucide="triangle-alert" class="h-4 w-4 text-red-600"></i> Kes serius yang perlu perhatian</h3></div><div class="card-b pt-1" id="p-serious">${reportTable(d.serious, { emptyTitle: 'Tiada kes serius terbuka' })}</div></div>
+      <div class="card"><div class="card-h"><h3>Kes yang saya kendalikan</h3></div><div class="card-b pt-1" id="p-mine">${reportTable(d.myCases, { emptyTitle: 'Tiada kes ditugaskan' })}</div></div></div>
+      <div class="card mt-5"><div class="card-h"><h3>Senarai laporan terkini</h3><button class="btn btn-ghost btn-sm" onclick="go('tindakan')">Tindakan disiplin <i data-lucide="chevron-right"></i></button></div><div class="card-b pt-1" id="p-recent">${reportTable(d.recent)}</div></div>`;
+  } else if (role === 'PK_HEM') {
+    cards = statCard('Kes tahun ' + d.year, s.yearTotal, 'files', 'navy')
+      + statCard('Perlu semakan', (s.byStatus.DIHANTAR || 0) + (s.byStatus.DALAM_SEMAKAN || 0), 'search', 'gold')
+      + statCard('Dalam tindakan', s.byStatus.DALAM_TINDAKAN || 0, 'gavel', 'orange')
+      + statCard('Selesai', s.selesai, 'circle-check', 'green');
+    panels = `<div class="grid lg:grid-cols-2 gap-5 mt-5">
+      <div class="card"><div class="card-h"><h3>Jumlah kes mengikut bulan (${d.year})</h3></div><div class="card-b"><div class="chart-box"><canvas id="c-bulan"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Jumlah kes mengikut tingkatan</h3></div><div class="card-b"><div class="chart-box"><canvas id="c-ting"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Status tindakan</h3></div><div class="card-b"><div class="chart-box"><canvas id="c-status"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Graf trend kesalahan</h3></div><div class="card-b"><div class="chart-box"><canvas id="c-trend"></canvas></div></div></div></div>
+      <div class="card mt-5"><div class="card-h"><h3>Kes yang memerlukan semakan</h3></div><div class="card-b pt-1" id="p-review">${reportTable(d.needReview, { emptyTitle: 'Tiada kes menunggu semakan' })}</div></div>`;
+    charts.push(() => monthChart('c-bulan', s, d.year, false), () => tingChart('c-ting', s), () => statusChart('c-status', s), () => trendChart('c-trend', s));
+  } else if (role === 'PENGETUA') {
+    const pct = s.total ? Math.round(s.selesai / s.total * 100) : 0;
+    cards = statCard('Jumlah kes keseluruhan', s.total, 'files', 'navy', s.yearTotal + ' kes pada ' + d.year)
+      + statCard('Kes selesai', s.selesai, 'circle-check', 'green', pct + '% daripada semua kes')
+      + statCard('Kes tertunggak', s.tertunggak, 'clock', 'orange')
+      + statCard('Kes berat terbuka', s.berat, 'triangle-alert', 'red');
+    const topKat = Object.entries(s.byKategori).sort((a, b) => b[1] - a[1])[0];
+    const diff = s.yearTotal - s.prevYearTotal;
+    panels = `<div class="card mt-5"><div class="card-h"><h3>Ringkasan pengurusan disiplin</h3></div><div class="card-b text-sm leading-relaxed text-slate-700">
+        Pada tahun ${d.year}, sebanyak <b>${s.yearTotal}</b> kes dilaporkan${s.prevYearTotal ? `, ${diff >= 0 ? 'meningkat' : 'menurun'} <b>${Math.abs(diff)}</b> kes berbanding ${d.year - 1} (${s.prevYearTotal} kes)` : ''}.
+        ${topKat ? `Kategori paling kerap ialah <b>${esc(topKat[0])}</b> (${topKat[1]} kes).` : ''}
+        Secara keseluruhan, <b>${s.selesai}</b> kes telah selesai dan <b>${s.tertunggak}</b> kes masih dalam proses, termasuk <b>${s.berat}</b> kes tahap berat.</div></div>
+      <div class="grid lg:grid-cols-5 gap-5 mt-5">
+        <div class="card lg:col-span-3"><div class="card-h"><h3>Perbandingan kes bulanan: ${d.year} vs ${d.year - 1}</h3></div><div class="card-b"><div class="chart-box"><canvas id="c-bulan"></canvas></div></div></div>
+        <div class="card lg:col-span-2"><div class="card-h"><h3>Taburan kategori kesalahan</h3></div><div class="card-b"><div class="chart-box"><canvas id="c-kat"></canvas></div></div></div></div>
+      <div class="card mt-5"><div class="card-h"><h3 class="flex items-center gap-2"><i data-lucide="triangle-alert" class="h-4 w-4 text-red-600"></i> Kes serius</h3></div><div class="card-b pt-1" id="p-serious">${reportTable(d.serious, { emptyTitle: 'Tiada kes serius terbuka' })}</div></div>`;
+    charts.push(() => monthChart('c-bulan', s, d.year, true), () => katChart('c-kat', s.byKategori, 'doughnut'));
+  }
+  main.innerHTML = `<div class="grid grid-cols-2 ${role === 'PK_HEM' || role === 'PENGETUA' ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-3 sm:gap-4">${cards}</div>${panels}`;
+  bindRows(main);
+  charts.forEach(fn => fn());
+};
+
+function katChart(id, byKat, type) {
+  const e = Object.entries(byKat || {}).sort((a, b) => b[1] - a[1]);
+  if (!e.length) { const el = document.getElementById(id); if (el) el.parentElement.innerHTML = emptyState('Tiada data untuk tempoh ini'); return; }
+  makeChart(id, type === 'doughnut'
+    ? { type: 'doughnut', data: { labels: e.map(x => x[0]), datasets: [{ data: e.map(x => x[1]), backgroundColor: PALETTE, borderWidth: 2, borderColor: '#fff' }] }, options: { cutout: '58%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } } } } }
+    : { type: 'bar', data: { labels: e.map(x => x[0]), datasets: [{ label: 'Kes', data: e.map(x => x[1]), backgroundColor: CH.royal, borderRadius: 6, maxBarThickness: 26 }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: intAxis, y: { grid: { display: false } } } } });
+}
+function monthChart(id, s, year, compare) {
+  const ds = [{ type: 'bar', label: String(year), data: s.byMonth, backgroundColor: CH.royal, borderRadius: 6, maxBarThickness: 30 }];
+  if (compare) ds.push({ type: 'line', label: String(year - 1), data: s.byMonthPrev, borderColor: CH.gold, backgroundColor: CH.gold, cubicInterpolationMode: 'monotone', pointRadius: 3 });
+  makeChart(id, { type: 'bar', data: { labels: BULAN, datasets: ds }, options: { plugins: { legend: { display: compare } }, scales: { y: intAxis, x: { grid: { display: false } } } } });
+}
+function tingChart(id, s) {
+  const labels = Object.keys(s.byTingkatan).filter(t => /^[1-5]$/.test(t) || s.byTingkatan[t]);
+  makeChart(id, { type: 'bar', data: { labels: labels.map(t => /^\d$/.test(t) ? 'T' + t : t), datasets: [{ label: 'Kes', data: labels.map(k => s.byTingkatan[k]), backgroundColor: CH.navy, borderRadius: 6, maxBarThickness: 34 }] }, options: { plugins: { legend: { display: false } }, scales: { y: intAxis, x: { grid: { display: false } } } } });
+}
+function statusChart(id, s) {
+  const keys = STATUS_ORDER.filter(k => s.byStatus[k]);
+  if (!keys.length) { const el = document.getElementById(id); if (el) el.parentElement.innerHTML = emptyState('Tiada data'); return; }
+  const col = { DIHANTAR: CH.royal, DALAM_SEMAKAN: CH.amber, DALAM_TINDAKAN: CH.orange, SELESAI: CH.green, DIPULANGKAN: CH.red };
+  makeChart(id, { type: 'doughnut', data: { labels: keys.map(k => STATUS_LABEL[k]), datasets: [{ data: keys.map(k => s.byStatus[k]), backgroundColor: keys.map(k => col[k]), borderWidth: 2, borderColor: '#fff' }] }, options: { cutout: '60%', plugins: { legend: { position: 'right' } } } });
+}
+function trendChart(id, s) {
+  const top = Object.entries(s.byKategori).sort((a, b) => b[1] - a[1]).slice(0, 5).map(x => x[0]);
+  if (!top.length) { const el = document.getElementById(id); if (el) el.parentElement.innerHTML = emptyState('Tiada data'); return; }
+  makeChart(id, { type: 'line', data: { labels: BULAN, datasets: top.map((k, i) => ({ label: k, data: s.kategoriByMonth[k], borderColor: PALETTE[i], backgroundColor: PALETTE[i], cubicInterpolationMode: 'monotone', pointRadius: 2 })) }, options: { scales: { y: intAxis, x: { grid: { display: false } } } } });
+}
+
+/* =====================================================================
+ * SENARAI LAPORAN
+ * ===================================================================== */
+function filterBar(prefix, f = {}) {
+  const st = S.settings;
+  const opt = (list, v) => list.map(x => `<option value="${esc(x[0])}" ${x[0] === v ? 'selected' : ''}>${esc(x[1])}</option>`).join('');
+  return `<form id="${prefix}-filter" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
+    <div class="col-span-2 relative"><i data-lucide="search" class="h-4 w-4 absolute left-3 top-3 text-slate-400"></i><input name="q" class="inp pl-9" placeholder="Cari ID / nama murid / pelapor" value="${esc(f.q || '')}"></div>
+    <select name="status" class="inp"><option value="">Semua status</option>${opt(['DRAF', ...STATUS_ORDER].map(s => [s, STATUS_LABEL[s]]), f.status)}</select>
+    <select name="tingkatan" class="inp"><option value="">Semua tingkatan</option>${opt(st.tingkatan.map(t => [t, /^\d$/.test(t) ? 'Tingkatan ' + t : t]), f.tingkatan)}</select>
+    <input name="kelas" class="inp" placeholder="Kelas" value="${esc(f.kelas || '')}">
+    <select name="kategori" class="inp"><option value="">Semua kategori</option>${opt(st.kategori.map(k => [k.nama, k.nama]), f.kategori)}</select>
+    <input type="date" name="dari" class="inp" title="Dari tarikh" value="${esc(f.dari || '')}">
+    <input type="date" name="hingga" class="inp" title="Hingga tarikh" value="${esc(f.hingga || '')}">
+  </form>`;
+}
+function readFilter(form) { return Object.fromEntries(new FormData(form).entries()); }
+
+VIEWS.senarai = async (main, params) => {
+  const priv = isPriv();
+  let scope = params.scope || (priv ? 'semua' : 'saya');
+  setTitle(priv ? 'Senarai Laporan' : 'Laporan Saya', priv ? 'Semua laporan disiplin yang telah dihantar' : 'Laporan yang anda buat');
+  main.innerHTML = `<div class="card">
+    ${priv ? `<div class="tabs px-4"><button class="tab ${scope === 'semua' ? 'active' : ''}" data-scope="semua">Semua laporan</button><button class="tab ${scope === 'saya' ? 'active' : ''}" data-scope="saya">Laporan saya</button></div>` : ''}
+    <div class="p-4 border-b border-slate-100">${filterBar('ls', params.filters || {})}</div>
+    <div class="px-4 pb-2 pt-3 flex items-center justify-between"><p id="ls-count" class="text-xs text-slate-500"></p>
+      <button class="btn btn-ghost btn-sm" id="ls-reset"><i data-lucide="rotate-ccw"></i> Set semula</button></div>
+    <div id="ls-body" class="px-4 pb-4"></div></div>`;
+  const form = $('#ls-filter');
+  const load = async () => {
+    $('#ls-body').innerHTML = '<div class="py-10 flex justify-center"><div class="h-7 w-7 rounded-full border-[3px] border-royal-200 border-t-royal-600 animate-spin"></div></div>';
+    const f = readFilter(form);
+    const rows = await callT(scope === 'semua' ? 'getAllReports' : 'getMyReports', f);
+    $('#ls-count').textContent = rows.length + ' laporan dijumpai';
+    $('#ls-body').innerHTML = reportTable(rows, { pelapor: scope === 'semua', emptyTitle: 'Tiada laporan sepadan', emptySub: 'Cuba ubah penapis carian.' });
+    bindRows($('#ls-body')); icons();
+  };
+  form.addEventListener('input', debounce(load, 450));
+  form.addEventListener('submit', e => { e.preventDefault(); load(); });
+  $('#ls-reset').onclick = () => { form.reset(); $$('input', form).forEach(i => i.value = ''); load(); };
+  $$('[data-scope]', main).forEach(b => b.onclick = () => go('senarai', { scope: b.dataset.scope }));
+  await load();
+};
+
+/* =====================================================================
+ * BUTIRAN LAPORAN
+ * ===================================================================== */
+VIEWS.detail = async (main, params) => {
+  const d = await callT('getReportById', { reportId: params.id });
+  renderDetail(main, d);
+};
+
+function kv(rows) {
+  return `<dl class="kv">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v === undefined || v === null || v === '' ? '<span class="text-slate-400">-</span>' : v}</dd>`).join('')}</dl>`;
+}
+const txt = v => esc(v).replace(/\n/g, '<br>');
+
+function renderDetail(main, d) {
+  setTitle(d.reportId, `${d.namaMurid || ''} · ${d.statusLabel}`);
+  const p = d.permissions;
+  const ver = d.verification;
+  const verBox = v => `<div class="rounded-xl border ${v.status === 'DISAHKAN' || v.status === 'DIHANTAR' ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50'} p-3">
+      <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">${esc(v.jawatan)}</p>
+      <p class="mt-1 text-sm font-semibold text-navy-900">${esc(v.nama || '—')}</p>
+      <p class="text-xs mt-1 ${v.status === 'DISAHKAN' || v.status === 'DIHANTAR' ? 'text-emerald-700' : 'text-slate-500'}">${v.status === 'DISAHKAN' ? 'Disahkan ' + fmtDateTime(v.tarikh) : v.status === 'DIHANTAR' ? 'Dihantar ' + fmtDateTime(v.tarikh) : 'Belum disahkan'}</p></div>`;
+
+  main.innerHTML = `
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <button class="btn btn-ghost btn-sm" onclick="go(S.params.back || 'senarai')"><i data-lucide="arrow-left"></i> Kembali</button>
+    <div class="flex-1"></div>
+    <button class="btn btn-ghost btn-sm" id="d-pdf"><i data-lucide="file-down"></i> MUAT TURUN PDF</button>
+    <button class="btn btn-ghost btn-sm" id="d-print"><i data-lucide="printer"></i> CETAK LAPORAN</button>
+  </div>
+  ${d.status === 'DIPULANGKAN' && p.isOwner ? `<div class="mb-4 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-900 flex gap-3"><i data-lucide="rotate-ccw" class="h-5 w-5 shrink-0"></i>
+     <div><b>Laporan dipulangkan untuk pembetulan.</b><p class="mt-1">${txt((d.history.filter(h => h.ke === 'DIPULANGKAN').pop() || {}).ulasan || '')}</p></div></div>` : ''}
+  <div class="grid xl:grid-cols-3 gap-5">
+    <div class="xl:col-span-2 space-y-5">
+      <div class="card"><div class="card-h"><div class="flex items-center gap-3 flex-wrap"><h3>${esc(d.reportId)}</h3>${badge(d.status)}${tahapBadge(d.tahap)}</div>
+        <span class="text-xs text-slate-500">Dikemas kini ${fmtDateTime(d.updatedAt)}</span></div>
+        <div class="card-b grid md:grid-cols-2 gap-x-8">
+          <div><p class="section-title mb-3"><span class="num">A</span> Maklumat laporan</p>${kv([['Tarikh laporan', fmtDate(d.createdAt)], ['Masa laporan', esc(String(d.createdAt).slice(11, 16))], ['Guru pelapor', esc(d.namaPelapor)], ['ID Guru', esc(d.idGuruPelapor)], ['Dihantar', d.submittedAt ? fmtDateTime(d.submittedAt) : ''], ['Pegawai kendali', esc(d.namaHandler)]])}</div>
+          <div><p class="section-title mb-3"><span class="num">B</span> Maklumat murid</p>${kv([['Nama murid', `<b>${esc(d.namaMurid)}</b>`], ['ID Murid', esc(d.studentId)], ['Tingkatan / Kelas', esc([d.tingkatan, d.kelas].filter(Boolean).join(' / '))], ['Jantina', esc(d.jantina)], ['Sesi', esc(d.sesi)]])}</div>
+        </div>
+        <div class="card-b border-t border-slate-100"><p class="section-title mb-3"><span class="num">C</span> Maklumat kes</p>
+          ${kv([['Tarikh & masa kejadian', `${fmtDate(d.tarikhKejadian)} ${esc(d.masaKejadian)}`], ['Tempat', esc(d.tempat)], ['Kategori', esc(d.kategori)], ['Jenis kesalahan', esc(d.jenis)], ['Tahap', tahapBadge(d.tahap)], ['Keterangan', txt(d.keterangan)], ['Saksi', txt(d.saksi)], ['Catatan tambahan', txt(d.catatan)]])}</div>
+        <div class="card-b border-t border-slate-100"><p class="section-title mb-3"><span class="num">D</span> Lampiran bukti</p>
+          ${d.attachments.length ? `<div class="grid sm:grid-cols-2 gap-2">${d.attachments.map(a => `<button class="att-view flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-left hover:bg-slate-50" data-att="${esc(a.attachmentId)}">
+            <i data-lucide="${a.jenis === 'application/pdf' ? 'file-text' : 'image'}" class="h-5 w-5 text-royal-600"></i><span class="min-w-0 flex-1"><span class="block text-sm font-semibold truncate">${esc(a.nama)}</span><span class="text-xs text-slate-500">${fmtBytes(a.saiz)}</span></span><i data-lucide="eye" class="h-4 w-4 text-slate-400"></i></button>`).join('')}</div>` : '<p class="text-sm text-slate-500">Tiada lampiran.</p>'}</div>
+      </div>
+
+      <div class="card"><div class="card-h"><h3 class="flex items-center gap-2"><span class="section-title"><span class="num">E</span></span> Tindakan susulan</h3></div>
+        <div class="card-b">${d.actions.length ? d.actions.map(a => `<div class="rounded-xl border border-slate-200 p-4 mb-3 last:mb-0">
+          <div class="flex flex-wrap items-center gap-2 justify-between"><p class="font-semibold text-navy-900">${esc(a.jenis)}</p><span class="badge st-DALAM_TINDAKAN">${esc(a.statusTindakan)}</span></div>
+          <p class="text-xs text-slate-500 mt-1">${fmtDate(a.tarikh)} · ${esc(a.pegawai)}</p>
+          ${a.catatan ? `<p class="text-sm mt-2 text-slate-700">${txt(a.catatan)}</p>` : ''}</div>`).join('') : '<p class="text-sm text-slate-500">Belum ada tindakan direkodkan.</p>'}</div>
+        ${d.approvals.length ? `<div class="card-b border-t border-slate-100"><p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Ulasan & pengesahan pegawai</p>${d.approvals.map(a => `
+          <div class="flex gap-3 mb-3"><span class="h-8 w-8 shrink-0 rounded-full ${a.keputusan === 'DISAHKAN' ? 'bg-emerald-100 text-emerald-700' : a.keputusan === 'DIPULANGKAN' ? 'bg-red-100 text-red-700' : 'bg-royal-100 text-royal-700'} flex items-center justify-center"><i data-lucide="${a.keputusan === 'DISAHKAN' ? 'badge-check' : a.keputusan === 'DIPULANGKAN' ? 'rotate-ccw' : 'message-square'}" class="h-4 w-4"></i></span>
+          <div class="min-w-0"><p class="text-sm"><b>${esc(a.nama)}</b> <span class="text-slate-500">(${esc(a.roleLabel)})</span> · <span class="text-xs font-bold">${esc({ DISAHKAN: 'Disahkan', ULASAN: 'Ulasan', DIPULANGKAN: 'Dipulangkan' }[a.keputusan])}</span></p>
+          <p class="text-xs text-slate-400">${fmtDateTime(a.tarikh)}</p>${a.ulasan ? `<p class="text-sm text-slate-700 mt-1">${txt(a.ulasan)}</p>` : ''}</div></div>`).join('')}</div>` : ''}
+      </div>
+
+      <div class="card"><div class="card-h"><h3>Pengesahan</h3><span class="text-[11px] text-slate-400">Rekod digital dalam sistem</span></div>
+        <div class="card-b grid grid-cols-2 lg:grid-cols-4 gap-3">${verBox(ver.pelapor)}${verBox(ver.gd)}${verBox(ver.pkhem)}${verBox(ver.pengetua)}</div></div>
+    </div>
+
+    <div class="space-y-5">
+      <div class="card" id="d-actions"><div class="card-h"><h3>Tindakan anda</h3></div><div class="card-b space-y-3" id="d-actions-b"></div></div>
+      <div class="card"><div class="card-h"><h3 class="flex items-center gap-2"><i data-lucide="history" class="h-4 w-4"></i> Sejarah status</h3></div>
+        <div class="card-b"><div class="timeline">${d.history.map(h => `<div class="tl-item"><div class="flex items-center gap-2 flex-wrap">${badge(h.ke)}<span class="text-[11px] text-slate-400">${fmtDateTime(h.masa)}</span></div>
+          <p class="text-xs text-slate-600 mt-1">${esc(h.nama)}${h.roleLabel ? ' · ' + esc(h.roleLabel) : ''}</p>${h.ulasan ? `<p class="text-xs text-slate-700 mt-1 bg-slate-50 rounded-lg p-2">${txt(h.ulasan)}</p>` : ''}</div>`).join('')}</div></div></div>
+    </div>
+  </div>`;
+
+  buildActionPanel(d);
+  $('#d-pdf').onclick = () => generateReportPdf(d.reportId, 'save');
+  $('#d-print').onclick = () => generateReportPdf(d.reportId, 'print');
+  $$('.att-view', main).forEach(b => b.onclick = () => viewAttachment(b.dataset.att));
+  icons();
+}
+
+function buildActionPanel(d) {
+  const p = d.permissions, box = $('#d-actions-b');
+  const parts = [];
+  if (p.canEdit) {
+    parts.push(`<button class="btn btn-primary w-full" onclick="go('buat',{id:'${esc(d.reportId)}'})"><i data-lucide="pencil"></i> ${d.status === 'DIPULANGKAN' ? 'Betulkan & hantar semula' : 'Kemas kini / hantar draf'}</button>`);
+  }
+  if (p.canDeleteDraft) parts.push(`<button class="btn btn-danger w-full" id="a-deldraft"><i data-lucide="trash-2"></i> Padam draf</button>`);
+  const tColor = { DALAM_SEMAKAN: 'btn-navy', DALAM_TINDAKAN: 'btn-gold', SELESAI: 'btn-success', DIPULANGKAN: 'btn-danger' };
+  const tLabel = (t) => d.status === 'SELESAI' ? 'Buka semula kes' : (d.status === 'DALAM_TINDAKAN' && t.to === 'DALAM_SEMAKAN') ? 'Kembali ke semakan' : ({ DALAM_SEMAKAN: 'Terima untuk semakan', DALAM_TINDAKAN: 'Tukar ke Dalam Tindakan', SELESAI: 'Tandakan SELESAI', DIPULANGKAN: 'Pulangkan untuk pembetulan' }[t.to] || t.label);
+  if (p.transitions.length) {
+    parts.push(`<div><p class="lbl">Kemas kini status</p><div class="grid gap-2">${p.transitions.map(t => `<button class="btn ${tColor[t.to] || 'btn-ghost'} w-full a-trans" data-to="${t.to}" data-need="${t.needUlasan ? 1 : 0}">${esc(tLabel(t))}</button>`).join('')}</div></div>`);
+  }
+  if (p.canSetHandler && d.handlers) {
+    parts.push(`<div><p class="lbl">Guru disiplin yang mengendalikan</p><div class="flex gap-2"><select id="a-handler" class="inp"><option value="">— Pilih —</option>${d.handlers.map(h => `<option value="${esc(h.userId)}" ${h.userId === d.handlerId ? 'selected' : ''}>${esc(h.nama)}</option>`).join('')}</select><button class="btn btn-ghost" id="a-sethandler">Simpan</button></div></div>`);
+  }
+  if (p.canAddAction) parts.push(`<button class="btn btn-gold w-full" id="a-action"><i data-lucide="gavel"></i> Rekod tindakan disiplin</button>`);
+  if (p.canApprove) parts.push(`<button class="btn btn-ghost w-full" id="a-approve"><i data-lucide="badge-check"></i> Pengesahan / ulasan</button>`);
+  if (!parts.length) parts.push(`<p class="text-sm text-slate-500">Tiada tindakan diperlukan daripada anda pada status ini.</p>`);
+  box.innerHTML = parts.join('');
+  icons();
+
+  const refresh = (nd) => renderDetail($('#main'), nd);
+  const del = $('#a-deldraft');
+  if (del) del.onclick = async () => {
+    if (!await confirmBox('Padam draf ini?', 'Draf akan dibuang daripada senarai anda.', 'Padam', 'warning')) return;
+    try { await withLoading('Memadam…', () => callT('deleteDraft', { reportId: d.reportId })); toast('Draf dipadam'); go('senarai'); } catch (e) { alertErr(e); }
+  };
+  $$('.a-trans', box).forEach(b => b.onclick = async () => {
+    const to = b.dataset.to, need = b.dataset.need === '1';
+    const r = await Swal.fire({
+      title: b.textContent.trim(), icon: to === 'DIPULANGKAN' ? 'warning' : 'question',
+      html: `<p class="text-sm text-slate-600 mb-2">${esc(d.reportId)} · ${esc(d.namaMurid)}</p>`,
+      input: 'textarea', inputLabel: need ? 'Ulasan / sebab (wajib)' : 'Ulasan (pilihan)', inputAttributes: { maxlength: 2000 },
+      showCancelButton: true, confirmButtonText: 'Sahkan', cancelButtonText: 'Batal', reverseButtons: true,
+      inputValidator: v => need && (!v || v.trim().length < 5) ? 'Sila nyatakan sebab (sekurang-kurangnya 5 aksara).' : undefined
+    });
+    if (!r.isConfirmed) return;
+    try { const nd = await withLoading('Mengemas kini status…', () => callT('updateReportStatus', { reportId: d.reportId, toStatus: to, ulasan: r.value || '' })); toast('Status dikemas kini'); refresh(nd); } catch (e) { alertErr(e); }
+  });
+  const sh = $('#a-sethandler');
+  if (sh) sh.onclick = async () => {
+    const id = $('#a-handler').value; if (!id) return;
+    try { const nd = await withLoading('Menyimpan…', () => callT('setHandler', { reportId: d.reportId, handlerId: id })); toast('Pegawai kendali dikemas kini'); refresh(nd); } catch (e) { alertErr(e); }
+  };
+  const act = $('#a-action');
+  if (act) act.onclick = async () => {
+    const r = await Swal.fire({
+      title: 'Rekod tindakan disiplin', width: 560, showCancelButton: true, confirmButtonText: 'Simpan tindakan', cancelButtonText: 'Batal', reverseButtons: true,
+      html: `<div class="space-y-3 text-left">
+        <div><label class="lbl req">Jenis tindakan</label><select id="sw-jenis" class="inp">${S.settings.jenisTindakan.map(j => `<option>${esc(j)}</option>`).join('')}</select></div>
+        <div class="grid grid-cols-2 gap-3"><div><label class="lbl req">Tarikh tindakan</label><input id="sw-tarikh" type="date" class="inp" max="${todayYmd()}" value="${todayYmd()}"></div>
+        <div><label class="lbl req">Status siasatan</label><select id="sw-status" class="inp"><option>Dalam siasatan</option><option>Tindakan diambil</option><option>Pemantauan</option><option>Selesai</option></select></div></div>
+        <div><label class="lbl req">Keterangan tindakan / catatan siasatan</label><textarea id="sw-catatan" class="inp" maxlength="3000"></textarea></div>
+        <p class="hint">Sistem tidak menetapkan hukuman secara automatik. Pastikan tindakan selaras dengan peraturan sekolah dan garis panduan KPM.</p></div>`,
+      preConfirm: () => {
+        const v = { jenis: $('#sw-jenis').value, tarikh: $('#sw-tarikh').value, statusTindakan: $('#sw-status').value, catatan: $('#sw-catatan').value.trim() };
+        if (!v.tarikh) return Swal.showValidationMessage('Tarikh tindakan wajib diisi.');
+        if (v.catatan.length < 5) return Swal.showValidationMessage('Keterangan tindakan wajib diisi (sekurang-kurangnya 5 aksara).');
+        return v;
+      }
+    });
+    if (!r.isConfirmed) return;
+    try { const nd = await withLoading('Menyimpan tindakan…', () => callT('addDisciplineAction', Object.assign({ reportId: d.reportId }, r.value))); toast('Tindakan direkodkan'); refresh(nd); } catch (e) { alertErr(e); }
+  };
+  const ap = $('#a-approve');
+  if (ap) ap.onclick = async () => {
+    const r = await Swal.fire({
+      title: 'Pengesahan / ulasan', width: 540, showCancelButton: true, confirmButtonText: 'Simpan', cancelButtonText: 'Batal', reverseButtons: true,
+      html: `<div class="space-y-3 text-left">
+        <div><label class="lbl req">Keputusan</label><select id="sw-kep" class="inp"><option value="DISAHKAN">Sahkan laporan / tindakan</option><option value="ULASAN">Beri ulasan sahaja</option>${p.canReturnViaApproval ? '<option value="DIPULANGKAN">Pulangkan untuk pembetulan</option>' : ''}</select></div>
+        <div><label class="lbl">Ulasan ${esc(ROLE_LABEL[S.user.role])}</label><textarea id="sw-ul" class="inp" maxlength="2000"></textarea><p class="hint">Wajib untuk "Ulasan" dan "Pulangkan".</p></div>
+        <p class="hint">Pengesahan ini direkod secara digital dengan nama, jawatan dan masa anda. Ia bukan tandatangan.</p></div>`,
+      preConfirm: () => {
+        const v = { keputusan: $('#sw-kep').value, ulasan: $('#sw-ul').value.trim() };
+        if (v.keputusan !== 'DISAHKAN' && v.ulasan.length < 5) return Swal.showValidationMessage('Sila tulis ulasan (sekurang-kurangnya 5 aksara).');
+        return v;
+      }
+    });
+    if (!r.isConfirmed) return;
+    try { const nd = await withLoading('Menyimpan…', () => callT('addApproval', Object.assign({ reportId: d.reportId }, r.value))); toast('Disimpan'); refresh(nd); } catch (e) { alertErr(e); }
+  };
+}
+
+async function viewAttachment(id) {
+  try {
+    const a = await withLoading('Memuatkan lampiran…', () => callT('getAttachment', { attachmentId: id }));
+    if (a.jenis === 'application/pdf') {
+      const bytes = Uint8Array.from(atob(a.base64), c => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      const w = window.open(url, '_blank');
+      if (!w) { const link = document.createElement('a'); link.href = url; link.download = a.nama; link.click(); }
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } else {
+      Swal.fire({ title: esc(a.nama), imageUrl: `data:${a.jenis};base64,${a.base64}`, imageAlt: a.nama, width: 760, confirmButtonText: 'Tutup' });
+    }
+  } catch (e) { alertErr(e); }
+}
+
+/* =====================================================================
+ * TINDAKAN DISIPLIN
+ * ===================================================================== */
+VIEWS.tindakan = async (main, params) => {
+  setTitle('Tindakan Disiplin', 'Kes yang menunggu semakan dan tindakan');
+  const tab = params.tab || 'DIHANTAR';
+  const tabs = [['DIHANTAR', 'Laporan baharu'], ['DALAM_SEMAKAN', 'Dalam semakan'], ['DALAM_TINDAKAN', 'Dalam tindakan'], ['DIPULANGKAN', 'Dipulangkan'], ['SELESAI', 'Selesai']];
+  const rows = await callT('getAllReports', { status: tab });
+  main.innerHTML = `<div class="card"><div class="tabs px-4">${tabs.map(t => `<button class="tab ${t[0] === tab ? 'active' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
+    <div class="p-4" id="tk-body">${reportTable(rows, { emptyTitle: 'Tiada kes dalam kategori ini' })}</div></div>`;
+  $$('[data-tab]', main).forEach(b => b.onclick = () => go('tindakan', { tab: b.dataset.tab }));
+  bindRows($('#tk-body'));
+};
+
+/* =====================================================================
+ * STATISTIK
+ * ===================================================================== */
+VIEWS.statistik = async (main, params) => {
+  setTitle('Statistik', 'Analisis kes disiplin sekolah');
+  const year = Number(params.year) || new Date().getFullYear();
+  const d = await callT('getDashboardStats', { year });
+  const s = d.stats;
+  const years = d.years || [year];
+  main.innerHTML = `
+    <div class="card card-b flex flex-wrap items-end gap-3">
+      <div><label class="lbl">Tahun</label><select id="st-year" class="inp w-32">${years.map(y => `<option ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></div>
+      <div><label class="lbl">Bulan (untuk laporan bulanan)</label><select id="st-month" class="inp w-40">${BULAN_PENUH.map((b, i) => `<option value="${i + 1}" ${i === new Date().getMonth() ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
+      <div class="flex-1"></div>
+      <button class="btn btn-ghost" id="st-month-pdf"><i data-lucide="file-down"></i> Laporan bulanan PDF</button>
+      <button class="btn btn-navy" id="st-year-pdf"><i data-lucide="file-down"></i> Laporan tahunan PDF</button>
+    </div>
+    <div class="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      ${statCard('Kes pada ' + year, s.yearTotal, 'files', 'navy', s.prevYearTotal ? (year - 1) + ': ' + s.prevYearTotal + ' kes' : '')}
+      ${statCard('Selesai (semua)', s.selesai, 'circle-check', 'green')}
+      ${statCard('Tertunggak (semua)', s.tertunggak, 'clock', 'orange')}
+      ${statCard('Berat & terbuka', s.berat, 'triangle-alert', 'red')}
+    </div>
+    <div class="grid lg:grid-cols-2 gap-5 mt-5">
+      <div class="card"><div class="card-h"><h3>Kes mengikut bulan: ${year} vs ${year - 1}</h3></div><div class="card-b"><div class="chart-box"><canvas id="s-bulan"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Taburan kategori kesalahan</h3></div><div class="card-b"><div class="chart-box"><canvas id="s-kat"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Kes mengikut tingkatan</h3></div><div class="card-b"><div class="chart-box"><canvas id="s-ting"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Status kes</h3></div><div class="card-b"><div class="chart-box"><canvas id="s-status"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>Trend 5 kategori utama</h3></div><div class="card-b"><div class="chart-box"><canvas id="s-trend"></canvas></div></div></div>
+      <div class="card"><div class="card-h"><h3>10 kelas dengan kes terbanyak</h3></div><div class="card-b"><div class="chart-box"><canvas id="s-kelas"></canvas></div></div></div>
+    </div>
+    <div class="card mt-5"><div class="card-h"><h3>Tahap kesalahan (${year})</h3></div><div class="card-b grid grid-cols-3 gap-3">
+      ${['Ringan', 'Sederhana', 'Berat'].map(t => `<div class="rounded-xl p-4 tp-${t}"><p class="text-xs font-bold uppercase">${t}</p><p class="text-2xl font-extrabold mt-1">${s.byTahap[t] || 0}</p></div>`).join('')}</div></div>`;
+  monthChart('s-bulan', s, year, true);
+  katChart('s-kat', s.byKategori, 'doughnut');
+  tingChart('s-ting', s);
+  statusChart('s-status', s);
+  trendChart('s-trend', s);
+  katChart('s-kelas', s.byKelas, 'bar');
+  $('#st-year').onchange = e => go('statistik', { year: e.target.value });
+  $('#st-month-pdf').onclick = () => generateSummaryPdf(year, Number($('#st-month').value));
+  $('#st-year-pdf').onclick = () => generateSummaryPdf(year, 0);
+};
+
+/* =====================================================================
+ * NOTIFIKASI
+ * ===================================================================== */
+VIEWS.notifikasi = async (main) => {
+  setTitle('Notifikasi', 'Makluman berkaitan laporan dan akaun anda');
+  const r = await callT('getNotifications', { limit: 100 });
+  main.innerHTML = `<div class="card"><div class="card-h"><h3>${r.unread} belum dibaca</h3>
+      ${r.unread ? '<button class="btn btn-ghost btn-sm" id="n-all"><i data-lucide="check-check"></i> Tandakan semua dibaca</button>' : ''}</div>
+    <div class="divide-y divide-slate-100">${r.items.length ? r.items.map(n => `
+      <button class="n-item w-full text-left px-5 py-4 flex gap-3 hover:bg-slate-50 ${n.isRead ? '' : 'bg-royal-50/60'}" data-id="${esc(n.notificationId)}" data-report="${esc(n.reportId)}">
+        <span class="mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${n.isRead ? 'bg-slate-200' : 'bg-gold-500'}"></span>
+        <span class="min-w-0 flex-1"><span class="block text-sm ${n.isRead ? 'text-slate-600' : 'text-navy-900 font-semibold'}">${esc(n.message)}</span>
+        <span class="block text-xs text-slate-400 mt-1">${fmtDateTime(n.createdAt)}</span></span>
+        ${n.reportId ? '<i data-lucide="chevron-right" class="h-4 w-4 text-slate-400 mt-1"></i>' : ''}</button>`).join('') : emptyState('Tiada notifikasi')}</div></div>`;
+  const all = $('#n-all');
+  if (all) all.onclick = async () => { await callT('markNotificationRead', { notificationId: 'ALL' }); refreshNotifBadge(); go('notifikasi'); };
+  $$('.n-item', main).forEach(b => b.onclick = async () => {
+    try { await callT('markNotificationRead', { notificationId: b.dataset.id }); } catch (e) {}
+    refreshNotifBadge();
+    if (b.dataset.report) go('detail', { id: b.dataset.report, back: 'notifikasi' }); else go('notifikasi');
+  });
+};
+
+/* =====================================================================
+ * MUAT TURUN PDF
+ * ===================================================================== */
+VIEWS.pdf = async (main) => {
+  setTitle('Muat Turun PDF', 'Jana laporan kes disiplin dalam format A4');
+  const rows = await callT(isPriv() ? 'getAllReports' : 'getMyReports', {});
+  const year = new Date().getFullYear();
+  main.innerHTML = `
+    ${isPriv() ? `<div class="card card-b mb-5 flex flex-wrap items-end gap-3">
+      <div class="mr-auto"><p class="font-bold text-navy-900">Laporan ringkasan</p><p class="text-xs text-slate-500">Statistik dan senarai kes bagi tempoh dipilih</p></div>
+      <div><label class="lbl">Tahun</label><input id="pd-year" type="number" class="inp w-28" value="${year}" min="2020" max="2100"></div>
+      <div><label class="lbl">Bulan</label><select id="pd-month" class="inp w-40"><option value="0">Sepanjang tahun</option>${BULAN_PENUH.map((b, i) => `<option value="${i + 1}">${b}</option>`).join('')}</select></div>
+      <button class="btn btn-navy" id="pd-sum"><i data-lucide="file-down"></i> Jana PDF ringkasan</button></div>` : ''}
+    <div class="card"><div class="card-h"><h3>Laporan individu</h3><input id="pd-q" class="inp max-w-xs" placeholder="Tapis ID / nama murid"></div>
+      <div id="pd-list" class="divide-y divide-slate-100"></div></div>`;
+  const draw = (q) => {
+    const list = rows.filter(r => !q || (r.reportId + ' ' + r.namaMurid).toLowerCase().includes(q.toLowerCase())).slice(0, 200);
+    $('#pd-list').innerHTML = list.length ? list.map(r => `<div class="px-5 py-3 flex flex-wrap items-center gap-3">
+      <div class="min-w-0 flex-1"><p class="text-sm"><b class="text-royal-700">${esc(r.reportId)}</b> · ${esc(r.namaMurid || '(belum diisi)')} <span class="text-slate-500">${esc(kelasLabel(r.tingkatan, r.kelas))}</span></p>
+      <p class="text-xs text-slate-500">${esc(r.kategori || '-')} · ${fmtDate(r.tarikhKejadian)}</p></div>${badge(r.status)}
+      <button class="btn btn-ghost btn-sm pd-get" data-id="${esc(r.reportId)}"><i data-lucide="file-down"></i> PDF</button>
+      <button class="btn btn-ghost btn-sm pd-print" data-id="${esc(r.reportId)}"><i data-lucide="printer"></i> Cetak</button></div>`).join('') : emptyState('Tiada laporan');
+    $$('.pd-get').forEach(b => b.onclick = () => generateReportPdf(b.dataset.id, 'save'));
+    $$('.pd-print').forEach(b => b.onclick = () => generateReportPdf(b.dataset.id, 'print'));
+    icons();
+  };
+  draw('');
+  $('#pd-q').addEventListener('input', debounce(e => draw(e.target.value), 200));
+  const sum = $('#pd-sum');
+  if (sum) sum.onclick = () => generateSummaryPdf(Number($('#pd-year').value), Number($('#pd-month').value));
+};
+</script>

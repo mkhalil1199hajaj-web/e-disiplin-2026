@@ -1,0 +1,238 @@
+<script>
+'use strict';
+/* =====================================================================
+ * JsReport — borang laporan disiplin (cipta, draf, hantar, lampiran)
+ * ===================================================================== */
+
+window.FORM = null; // { reportId, status, attachments: [] }
+
+VIEWS.buat = async (main, params) => {
+  let d = null;
+  if (params.id) {
+    d = await callT('getReportById', { reportId: params.id });
+    if (!d.permissions.canEdit) {
+      toast('Laporan ini tidak boleh disunting pada status semasa.', 'info');
+      return renderDetail(main, d);
+    }
+  }
+  window.FORM = { reportId: d ? d.reportId : '', status: d ? d.status : 'DRAF', attachments: d ? d.attachments : [] };
+  setTitle(d ? 'Kemas Kini Laporan ' + d.reportId : 'Buat Laporan Baharu', d && d.status === 'DIPULANGKAN' ? 'Laporan dipulangkan — sila buat pembetulan dan hantar semula' : 'Isi semua medan bertanda * sebelum menghantar');
+  const st = S.settings;
+  const v = (k) => esc(d ? (d[k] || '') : '');
+  const sel = (name, list, cur, ph) => `<select name="${name}" class="inp"><option value="">${ph || '— Pilih —'}</option>${list.map(x => {
+    const val = Array.isArray(x) ? x[0] : x, lab = Array.isArray(x) ? x[1] : x;
+    return `<option value="${esc(val)}" ${val === cur ? 'selected' : ''}>${esc(lab)}</option>`;
+  }).join('')}</select>`;
+  const returned = d && d.status === 'DIPULANGKAN' ? (d.history.filter(h => h.ke === 'DIPULANGKAN').pop() || {}).ulasan : '';
+
+  main.innerHTML = `
+  ${returned ? `<div class="mb-4 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-900"><b>Sebab dipulangkan:</b> ${txt(returned)}</div>` : ''}
+  <form id="rf" class="space-y-5" novalidate>
+    <div class="card"><div class="card-h"><p class="section-title"><span class="num">A</span> Maklumat laporan</p>${badge(window.FORM.status)}</div>
+      <div class="card-b grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+        <div><p class="lbl">ID Laporan</p><p id="rf-id" class="font-bold text-royal-700">${esc(window.FORM.reportId || 'Dijana automatik semasa simpan')}</p></div>
+        <div><p class="lbl">Tarikh & masa laporan</p><p>${d ? fmtDateTime(d.createdAt) : fmtDate(todayYmd()) + ' ' + nowHm()}</p></div>
+        <div><p class="lbl">Guru pelapor</p><p>${esc(d ? d.namaPelapor : S.user.nama)}</p></div>
+        <div><p class="lbl">ID Guru</p><p>${esc(d ? d.idGuruPelapor : S.user.idGuru)}</p></div>
+      </div></div>
+
+    <div class="card"><div class="card-h"><p class="section-title"><span class="num">B</span> Maklumat murid</p></div>
+      <div class="card-b space-y-4">
+        <div class="relative"><label class="lbl">Cari murid dalam senarai sekolah</label>
+          <div class="relative"><i data-lucide="search" class="h-4 w-4 absolute left-3 top-3 text-slate-400"></i><input id="rf-search" class="inp pl-9" placeholder="Taip nama atau ID murid (min. 2 aksara)" autocomplete="off"></div>
+          <div id="rf-suggest" class="suggest hidden"></div>
+          <p class="hint">Jika murid tiada dalam senarai, isi maklumat secara manual di bawah.</p></div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="sm:col-span-2 field"><label class="req">Nama penuh murid</label><input name="namaMurid" class="inp" maxlength="120" value="${v('namaMurid')}"></div>
+          <div class="field"><label class="req">ID Murid / No. pendaftaran</label><input name="studentId" class="inp uppercase" maxlength="30" value="${v('studentId')}"></div>
+          <div class="field"><label class="req">Tingkatan</label>${sel('tingkatan', st.tingkatan.map(t => [t, /^\d$/.test(t) ? 'Tingkatan ' + t : t]), d && d.tingkatan)}</div>
+          <div class="field"><label class="req">Kelas</label><input name="kelas" class="inp" maxlength="40" value="${v('kelas')}" placeholder="cth: 3 Bestari"></div>
+          <div class="field"><label>Jantina</label>${sel('jantina', ['Lelaki', 'Perempuan'], d && d.jantina, '— Tidak dinyatakan —')}</div>
+          <div class="field"><label class="req">Sesi persekolahan</label>${sel('sesi', st.sesi, d ? d.sesi : 'Pagi')}</div>
+        </div></div></div>
+
+    <div class="card"><div class="card-h"><p class="section-title"><span class="num">C</span> Maklumat kes</p></div>
+      <div class="card-b grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="field"><label class="req">Tarikh kejadian</label><input type="date" name="tarikhKejadian" class="inp" max="${todayYmd()}" value="${d ? v('tarikhKejadian') : todayYmd()}"></div>
+        <div class="field"><label class="req">Masa kejadian</label><input type="time" name="masaKejadian" class="inp" value="${d ? v('masaKejadian') : nowHm()}"></div>
+        <div class="field"><label class="req">Tempat kejadian</label><input name="tempat" list="rf-tempat" class="inp" maxlength="120" value="${v('tempat')}"><datalist id="rf-tempat">${st.tempat.map(t => `<option value="${esc(t)}">`).join('')}</datalist></div>
+        <div class="field"><label class="req">Kategori kesalahan</label>${sel('kategori', st.kategori.map(k => k.nama), d && d.kategori)}</div>
+        <div class="field"><label class="req">Jenis kesalahan</label><select name="jenis" class="inp"></select></div>
+        <div class="field"><label class="req">Tahap kesalahan</label>${sel('tahap', st.tahap, d && d.tahap)}</div>
+        <div class="sm:col-span-2 lg:col-span-3 field"><label class="req">Keterangan kejadian</label><textarea name="keterangan" class="inp" maxlength="5000" placeholder="Nyatakan apa yang berlaku secara objektif: siapa, apa, bila, di mana dan bagaimana.">${v('keterangan')}</textarea>
+          <p class="hint"><span id="rf-count">0</span>/5000 aksara · minimum 10 aksara</p></div>
+        <div class="sm:col-span-2 lg:col-span-3 field"><label>Nama saksi (jika ada)</label><input name="saksi" class="inp" maxlength="300" value="${v('saksi')}"></div>
+        <div class="sm:col-span-2 lg:col-span-3 field"><label>Catatan tambahan</label><textarea name="catatan" class="inp" style="min-height:80px" maxlength="2000">${v('catatan')}</textarea></div>
+        <p class="sm:col-span-2 lg:col-span-3 hint flex gap-1.5"><i data-lucide="info" class="h-3.5 w-3.5 mt-px shrink-0"></i>Sistem tidak menetapkan hukuman secara automatik. Tindakan diputuskan oleh Guru Disiplin dan pihak pengurusan.</p>
+      </div></div>
+
+    <div class="card"><div class="card-h"><p class="section-title"><span class="num">D</span> Lampiran bukti</p><span class="text-xs text-slate-500">JPG, PNG atau PDF · maks ${st.maxFileMb}MB · ${st.maxLampiran} fail</span></div>
+      <div class="card-b">
+        <label class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 hover:border-royal-500 hover:bg-royal-50/40 transition p-6 cursor-pointer text-center">
+          <i data-lucide="upload" class="h-6 w-6 text-royal-600"></i><span class="text-sm font-semibold text-navy-900">Pilih gambar atau dokumen PDF</span>
+          <span class="text-xs text-slate-500">Fail disimpan secara peribadi dalam Google Drive sekolah — tiada pautan awam.</span>
+          <input id="rf-file" type="file" accept="image/jpeg,image/png,application/pdf" class="hidden" multiple></label>
+        <div id="rf-atts" class="mt-4 grid sm:grid-cols-2 gap-2"></div></div></div>
+
+    <div class="card"><div class="card-h"><p class="section-title"><span class="num">E</span> Tindakan susulan</p></div>
+      <div class="card-b text-sm text-slate-600">Bahagian ini diisi oleh Guru Disiplin, PK HEM dan Pengetua selepas laporan dihantar. Anda boleh memantau status dan tindakan dalam halaman butiran laporan.</div></div>
+
+    <div class="sticky bottom-0 z-10 -mx-4 sm:mx-0 px-4 sm:px-0 py-3 bg-slate-100/95 backdrop-blur">
+      <div class="card p-3 flex flex-wrap gap-2 justify-end">
+        <button type="button" class="btn btn-ghost" id="rf-preview"><i data-lucide="eye"></i> PRATONTON</button>
+        <button type="button" class="btn btn-ghost" id="rf-pdf"><i data-lucide="file-down"></i> MUAT TURUN PDF</button>
+        <button type="button" class="btn btn-ghost" id="rf-save"><i data-lucide="save"></i> SIMPAN DRAF</button>
+        <button type="button" class="btn btn-primary" id="rf-submit"><i data-lucide="send"></i> HANTAR LAPORAN</button>
+      </div></div>
+  </form>`;
+
+  const form = $('#rf');
+  const F = n => form.querySelector(`[name="${n}"]`);
+  const katSel = F('kategori'), jenisSel = F('jenis');
+  const fillJenis = (cur) => {
+    const k = st.kategori.find(x => x.nama === katSel.value);
+    jenisSel.innerHTML = '<option value="">— Pilih kategori dahulu —</option>' + (k ? k.jenis.map(j => `<option ${j === cur ? 'selected' : ''}>${esc(j)}</option>`).join('') : '');
+  };
+  fillJenis(d && d.jenis);
+  katSel.addEventListener('change', () => fillJenis(''));
+  const cnt = () => { $('#rf-count').textContent = F('keterangan').value.length; };
+  F('keterangan').addEventListener('input', cnt); cnt();
+
+  // carian murid
+  const sug = $('#rf-suggest');
+  $('#rf-search').addEventListener('input', debounce(async e => {
+    const q = e.target.value.trim();
+    if (q.length < 2) { sug.classList.add('hidden'); return; }
+    try {
+      const list = await callT('searchStudents', { q });
+      sug.innerHTML = list.length ? list.map((s, i) => `<button type="button" data-i="${i}"><b>${esc(s.namaMurid)}</b><span class="block text-xs text-slate-500">${esc(s.studentId)} · ${esc(kelasLabel(s.tingkatan, s.kelas))} · ${esc(s.sesi || '')}</span></button>`).join('')
+        : '<p class="p-3 text-sm text-slate-500">Tiada padanan. Isi secara manual.</p>';
+      sug.classList.remove('hidden');
+      $$('button', sug).forEach(b => b.onclick = () => {
+        const s = list[Number(b.dataset.i)];
+        F('namaMurid').value = s.namaMurid; F('studentId').value = s.studentId; F('kelas').value = s.kelas || '';
+        if (s.tingkatan) F('tingkatan').value = s.tingkatan;
+        if (s.sesi) F('sesi').value = s.sesi;
+        if (s.jantina) F('jantina').value = s.jantina;
+        sug.classList.add('hidden'); $('#rf-search').value = '';
+      });
+    } catch (err) { /* senyap */ }
+  }, 300));
+  document.addEventListener('click', ev => { if (!sug.contains(ev.target) && ev.target.id !== 'rf-search') sug.classList.add('hidden'); });
+
+  drawAttachments();
+  $('#rf-file').addEventListener('change', onFilesPicked);
+  $('#rf-save').onclick = () => saveDraftUi();
+  $('#rf-submit').onclick = () => submitUi();
+  $('#rf-preview').onclick = () => previewUi();
+  $('#rf-pdf').onclick = async () => { const id = await saveDraftUi(true); if (id) generateReportPdf(id, 'save'); };
+};
+
+function formPayload() {
+  const f = Object.fromEntries(new FormData($('#rf')).entries());
+  Object.keys(f).forEach(k => f[k] = String(f[k]).trim());
+  f.reportId = window.FORM.reportId || '';
+  return f;
+}
+
+function validateClient(f) {
+  const errs = [];
+  const req = { namaMurid: 'Nama murid', studentId: 'ID Murid', tingkatan: 'Tingkatan', kelas: 'Kelas', sesi: 'Sesi', tarikhKejadian: 'Tarikh kejadian', masaKejadian: 'Masa kejadian', tempat: 'Tempat kejadian', kategori: 'Kategori kesalahan', jenis: 'Jenis kesalahan', tahap: 'Tahap kesalahan', keterangan: 'Keterangan kejadian' };
+  $$('#rf .inp').forEach(i => i.classList.remove('invalid'));
+  Object.entries(req).forEach(([k, label]) => { if (!f[k]) { errs.push(label + ' wajib diisi.'); const el = $(`#rf [name="${k}"]`); if (el) el.classList.add('invalid'); } });
+  if (f.studentId && !/^[A-Za-z0-9\-\/]+$/.test(f.studentId)) errs.push('ID Murid hanya boleh mengandungi huruf, nombor, "-" atau "/".');
+  if (f.namaMurid && f.namaMurid.length < 3) errs.push('Nama murid terlalu pendek.');
+  if (f.keterangan && f.keterangan.length < 10) errs.push('Keterangan kejadian perlu sekurang-kurangnya 10 aksara.');
+  if (f.tarikhKejadian && f.tarikhKejadian > todayYmd()) errs.push('Tarikh kejadian tidak boleh melebihi hari ini.');
+  return errs;
+}
+
+async function saveDraftUi(silent) {
+  const f = formPayload();
+  if (!f.namaMurid && !f.studentId) { alertErr({ message: 'Isikan sekurang-kurangnya nama murid atau ID murid untuk menyimpan draf.' }); return null; }
+  try {
+    const r = await withLoading('Menyimpan draf…', () => callT('saveDraft', f));
+    window.FORM.reportId = r.reportId;
+    $('#rf-id').textContent = r.reportId;
+    if (!silent) toast('Draf disimpan: ' + r.reportId);
+    return r.reportId;
+  } catch (e) { alertErr(e, 'Draf tidak disimpan'); return null; }
+}
+
+async function submitUi() {
+  const f = formPayload();
+  const errs = validateClient(f);
+  if (errs.length) return Swal.fire({ icon: 'warning', title: 'Borang belum lengkap', html: `<ul class="list-disc pl-5 text-sm space-y-1">${errs.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` });
+  const ok = await confirmBox('Hantar laporan?', `Laporan bagi <b>${esc(f.namaMurid)}</b> akan dihantar kepada Guru Disiplin. Selepas dihantar, laporan tidak boleh disunting melainkan dipulangkan untuk pembetulan.`, 'Ya, hantar');
+  if (!ok) return;
+  try {
+    const r = await withLoading('Menghantar laporan…', () => callT('submitReport', f));
+    window.FORM = null;
+    await Swal.fire({ icon: 'success', title: 'Laporan dihantar', html: `ID laporan: <b>${esc(r.reportId)}</b><br>Guru Disiplin telah dimaklumkan.`, confirmButtonText: 'Lihat laporan' });
+    go('detail', { id: r.reportId });
+  } catch (e) { alertErr(e, 'Laporan tidak dihantar'); }
+}
+
+function previewUi() {
+  const f = formPayload();
+  const row = (k, v) => `<tr><td class="py-1.5 pr-3 text-xs text-slate-500 align-top whitespace-nowrap">${esc(k)}</td><td class="py-1.5 text-sm">${v ? txt(v) : '<span class="text-slate-400">-</span>'}</td></tr>`;
+  Swal.fire({
+    title: 'Pratonton laporan', width: 720, confirmButtonText: 'Tutup',
+    html: `<div class="text-left"><p class="text-xs font-bold text-royal-700 mb-2">${esc(window.FORM.reportId || 'ID akan dijana')}</p><table class="w-full">
+      ${row('Guru pelapor', S.user.nama)}${row('Nama murid', f.namaMurid)}${row('ID murid', f.studentId)}${row('Tingkatan / kelas', [f.tingkatan, f.kelas].filter(Boolean).join(' / '))}
+      ${row('Jantina', f.jantina)}${row('Sesi', f.sesi)}${row('Tarikh & masa', fmtDate(f.tarikhKejadian) + ' ' + f.masaKejadian)}${row('Tempat', f.tempat)}
+      ${row('Kategori', f.kategori)}${row('Jenis', f.jenis)}${row('Tahap', f.tahap)}${row('Keterangan', f.keterangan)}${row('Saksi', f.saksi)}${row('Catatan', f.catatan)}
+      ${row('Lampiran', window.FORM.attachments.map(a => a.nama).join(', '))}</table></div>`
+  });
+}
+
+function drawAttachments() {
+  const box = $('#rf-atts'); if (!box) return;
+  box.innerHTML = window.FORM.attachments.map(a => `<div class="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+    ${a.preview ? `<img src="${a.preview}" class="h-11 w-11 rounded-lg object-cover" alt="">` : `<span class="h-11 w-11 rounded-lg bg-royal-50 flex items-center justify-center"><i data-lucide="${a.jenis === 'application/pdf' ? 'file-text' : 'image'}" class="h-5 w-5 text-royal-600"></i></span>`}
+    <span class="min-w-0 flex-1"><span class="block text-sm font-semibold truncate">${esc(a.nama)}</span><span class="text-xs text-slate-500">${fmtBytes(a.saiz || 0)}</span></span>
+    <button type="button" class="p-2 rounded-lg hover:bg-slate-100 att-v" data-id="${esc(a.attachmentId)}" title="Pratonton"><i data-lucide="eye" class="h-4 w-4"></i></button>
+    <button type="button" class="p-2 rounded-lg hover:bg-red-50 text-red-600 att-d" data-id="${esc(a.attachmentId)}" title="Padam"><i data-lucide="trash-2" class="h-4 w-4"></i></button></div>`).join('');
+  $$('.att-v', box).forEach(b => b.onclick = () => viewAttachment(b.dataset.id));
+  $$('.att-d', box).forEach(b => b.onclick = async () => {
+    if (!await confirmBox('Padam lampiran?', 'Lampiran ini akan dibuang daripada laporan.', 'Padam', 'warning')) return;
+    try {
+      await withLoading('Memadam lampiran…', () => callT('deleteAttachment', { attachmentId: b.dataset.id }));
+      window.FORM.attachments = window.FORM.attachments.filter(a => a.attachmentId !== b.dataset.id);
+      drawAttachments(); toast('Lampiran dipadam');
+    } catch (e) { alertErr(e); }
+  });
+  icons();
+}
+
+function readAsDataUrl(file) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('Fail tidak dapat dibaca.')); r.readAsDataURL(file); });
+}
+
+async function onFilesPicked(ev) {
+  const files = Array.from(ev.target.files || []);
+  ev.target.value = '';
+  if (!files.length) return;
+  const st = S.settings;
+  const allowed = ['image/jpeg', 'image/png', 'application/pdf'];
+  if (window.FORM.attachments.length + files.length > st.maxLampiran) return alertErr({ message: `Maksimum ${st.maxLampiran} lampiran bagi setiap laporan.` });
+  for (const f of files) {
+    if (!allowed.includes(f.type)) return alertErr({ message: `"${f.name}": hanya fail JPG, PNG atau PDF dibenarkan.` });
+    if (f.size > st.maxFileMb * 1048576) return alertErr({ message: `"${f.name}" melebihi had ${st.maxFileMb}MB.` });
+  }
+  if (!window.FORM.reportId) {
+    const id = await saveDraftUi(true);
+    if (!id) return;
+  }
+  for (const f of files) {
+    try {
+      const dataUrl = await readAsDataUrl(f);
+      const r = await withLoading(`Memuat naik ${f.name}…`, () => callT('uploadEvidence', { reportId: window.FORM.reportId, fileName: f.name, mimeType: f.type, base64: dataUrl.split(',')[1] }));
+      r.preview = f.type.startsWith('image/') ? dataUrl : '';
+      window.FORM.attachments.push(r);
+      drawAttachments();
+    } catch (e) { alertErr(e, 'Muat naik gagal'); break; }
+  }
+  toast('Lampiran dimuat naik');
+}
+</script>

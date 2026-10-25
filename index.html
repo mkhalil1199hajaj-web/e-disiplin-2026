@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>e-DISIPLIN MURID 2026 · Sistem Pelaporan Kes Disiplin Sekolah</title>
+  <meta name="description" content="Sistem pelaporan dan pengurusan kes disiplin sekolah secara digital.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0b1d3a">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4a017' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: {
+      colors: { navy: { 950: '#071327', 900: '#0b1d3a', 800: '#10284f', 700: '#163667' }, royal: { 700: '#1c45a8', 600: '#2453c7', 500: '#2f66e0', 100: '#e5edfd' }, gold: { 500: '#d4a017', 400: '#e3b93d', 100: '#fbf3dc' } },
+      fontFamily: { sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'] } } } };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script src="config.js"></script>
+  <style>
+    body { background: #071327; }
+    .hero { background:
+      radial-gradient(1000px 520px at 12% -8%, rgba(47,102,224,.38), transparent 60%),
+      radial-gradient(800px 480px at 100% 100%, rgba(212,160,23,.20), transparent 55%),
+      linear-gradient(165deg, #071327 0%, #0b1d3a 50%, #10284f 100%); }
+    .grid-bg { background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 40px 40px; mask-image: radial-gradient(ellipse at center, #000 40%, transparent 80%); }
+    .rise { opacity: 0; transform: translateY(14px); animation: rise .7s cubic-bezier(.2,.7,.2,1) forwards; }
+    .d1 { animation-delay: .08s } .d2 { animation-delay: .18s } .d3 { animation-delay: .28s } .d4 { animation-delay: .4s } .d5 { animation-delay: .55s }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+    .float { animation: float 7s ease-in-out infinite; } .float.b { animation-delay: -3.5s; }
+    @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
+    .shine { position: relative; overflow: hidden; }
+    .shine::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%); transform: translateX(-100%); animation: shine 4.5s ease-in-out infinite 1.2s; }
+    @keyframes shine { 0%, 70% { transform: translateX(-100%) } 100% { transform: translateX(100%) } }
+    @media (prefers-reduced-motion: reduce) { .rise, .float, .shine::after { animation: none !important; opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="font-sans text-white antialiased">
+  <div class="hero min-h-screen relative overflow-hidden">
+    <div class="absolute inset-0 grid-bg"></div>
+
+    <header class="relative z-10 max-w-6xl mx-auto px-5 sm:px-8 pt-6 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-11 w-11 rounded-xl bg-gold-500/15 ring-1 ring-gold-400/40 flex items-center justify-center"><i data-lucide="shield-check" class="h-6 w-6 text-gold-400"></i></div>
+        <div><p class="font-extrabold tracking-tight leading-tight">e-DISIPLIN</p><p class="text-[11px] tracking-[0.22em] text-gold-400 font-semibold">MURID 2026</p></div>
+      </div>
+      <a href="panduan.html" class="hidden sm:inline-flex items-center gap-2 text-sm font-semibold text-white/75 hover:text-white"><i data-lucide="book-open" class="h-4 w-4"></i> Panduan</a>
+    </header>
+
+    <main class="relative z-10 max-w-6xl mx-auto px-5 sm:px-8 pt-14 sm:pt-20 pb-16 grid lg:grid-cols-12 gap-12 items-center">
+      <section class="lg:col-span-7">
+        <p class="rise d1 inline-flex items-center gap-2 rounded-full bg-white/5 ring-1 ring-white/10 px-3 py-1 text-[11px] font-bold tracking-[0.2em] text-gold-400">
+          <i data-lucide="school" class="h-3.5 w-3.5"></i> SISTEM PELAPORAN KES DISIPLIN SEKOLAH</p>
+        <h1 class="rise d2 mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight">e-DISIPLIN<br><span class="text-gold-400">MURID 2026</span></h1>
+        <p id="school" class="rise d2 mt-3 text-white/60 text-sm font-semibold hidden"></p>
+        <p class="rise d3 mt-5 text-lg sm:text-xl text-white/85 font-semibold">“Pelaporan Pantas, Pengurusan Sistematik, Sekolah Harmoni”</p>
+        <p class="rise d3 mt-3 max-w-xl text-white/60 leading-relaxed">Guru melapor kes disiplin secara digital, Guru Disiplin dan pihak pengurusan menyemak serta mengambil tindakan, dan setiap langkah direkod dengan teratur.</p>
+
+        <div class="rise d4 mt-8 flex flex-col sm:flex-row sm:flex-wrap gap-3">
+          <a id="btn-login" href="#" class="shine inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-gold-500 hover:bg-gold-400 text-navy-900 px-6 py-3.5 font-extrabold shadow-lg shadow-gold-500/20 transition"><i data-lucide="log-in" class="h-5 w-5"></i> LOG MASUK</a>
+          <a id="btn-register" href="#" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-royal-600 hover:bg-royal-700 px-6 py-3.5 font-extrabold transition"><i data-lucide="user-plus" class="h-5 w-5"></i> DAFTAR AKAUN</a>
+          <a href="panduan.html" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-white/5 hover:bg-white/10 ring-1 ring-white/15 px-6 py-3.5 font-extrabold transition"><i data-lucide="book-open" class="h-5 w-5"></i> PANDUAN PENGGUNA</a>
+        </div>
+        <p id="cfg-warn" class="hidden mt-4 text-sm text-gold-400"></p>
+        <p class="rise d5 mt-6 flex items-center gap-2 text-xs text-white/45"><i data-lucide="lock" class="h-3.5 w-3.5"></i> Log masuk menggunakan akaun Google rasmi sekolah. Akaun baharu perlu diluluskan oleh Admin.</p>
+      </section>
+
+      <section class="lg:col-span-5 relative hidden lg:block mb-10" aria-hidden="true">
+        <div class="float rounded-2xl bg-white text-navy-900 shadow-2xl p-5 rotate-1">
+          <div class="flex items-center justify-between"><p class="text-xs font-bold text-royal-600">DIS-2026-00XXX</p><span class="rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5">Dalam Semakan</span></div>
+          <div class="mt-3 space-y-2">
+            <div class="h-2.5 rounded bg-slate-200 w-3/4"></div><div class="h-2.5 rounded bg-slate-100 w-1/2"></div>
+            <div class="grid grid-cols-3 gap-2 pt-2"><div class="h-14 rounded-lg bg-royal-100"></div><div class="h-14 rounded-lg bg-gold-100"></div><div class="h-14 rounded-lg bg-emerald-50"></div></div>
+          </div>
+          <div class="mt-4 flex items-end gap-1.5 h-20">
+            <div class="flex-1 rounded-t bg-royal-600/80" style="height:40%"></div><div class="flex-1 rounded-t bg-royal-600/80" style="height:65%"></div><div class="flex-1 rounded-t bg-royal-600/80" style="height:50%"></div>
+            <div class="flex-1 rounded-t bg-gold-500" style="height:85%"></div><div class="flex-1 rounded-t bg-royal-600/80" style="height:55%"></div><div class="flex-1 rounded-t bg-royal-600/80" style="height:35%"></div>
+          </div>
+          <p class="mt-2 text-[10px] text-slate-400">Ilustrasi sahaja — tiada data sebenar dipaparkan</p>
+        </div>
+        <div class="float b absolute -bottom-12 right-6 w-56 rounded-2xl bg-navy-800 ring-1 ring-white/10 shadow-xl p-4">
+          <div class="flex items-center gap-2"><span class="h-8 w-8 rounded-lg bg-emerald-500/15 flex items-center justify-center"><i data-lucide="badge-check" class="h-4 w-4 text-emerald-400"></i></span><p class="text-sm font-bold">Kes selesai</p></div>
+          <p class="mt-2 text-xs text-white/60">Tindakan direkod, disahkan PK HEM & Pengetua.</p>
+        </div>
+      </section>
+    </main>
+
+    <section class="relative z-10 max-w-6xl mx-auto px-5 sm:px-8 pb-20">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="rounded-2xl bg-white/[.04] ring-1 ring-white/10 p-5"><i data-lucide="file-plus-2" class="h-6 w-6 text-gold-400"></i><p class="mt-3 font-bold">Lapor dalam minit</p><p class="mt-1 text-sm text-white/60">Borang digital lengkap dengan lampiran bukti, boleh diisi dari telefon.</p></div>
+        <div class="rounded-2xl bg-white/[.04] ring-1 ring-white/10 p-5"><i data-lucide="list-checks" class="h-6 w-6 text-gold-400"></i><p class="mt-3 font-bold">Aliran kerja jelas</p><p class="mt-1 text-sm text-white/60">Draf → Dihantar → Semakan → Tindakan → Selesai, dengan sejarah setiap perubahan.</p></div>
+        <div class="rounded-2xl bg-white/[.04] ring-1 ring-white/10 p-5"><i data-lucide="users" class="h-6 w-6 text-gold-400"></i><p class="mt-3 font-bold">Akses ikut peranan</p><p class="mt-1 text-sm text-white/60">Guru, Guru Disiplin, PK HEM, Pengetua dan Admin melihat apa yang perlu sahaja.</p></div>
+        <div class="rounded-2xl bg-white/[.04] ring-1 ring-white/10 p-5"><i data-lucide="file-down" class="h-6 w-6 text-gold-400"></i><p class="mt-3 font-bold">Laporan PDF A4</p><p class="mt-1 text-sm text-white/60">Laporan kes dan ringkasan bulanan/tahunan sedia untuk dicetak.</p></div>
+      </div>
+    </section>
+
+    <footer class="relative z-10 border-t border-white/10">
+      <div class="max-w-6xl mx-auto px-5 sm:px-8 py-6 flex flex-col sm:flex-row gap-2 justify-between text-xs text-white/45">
+        <p>© 2026 e-DISIPLIN MURID · Sistem Pelaporan dan Pengurusan Kes Disiplin Sekolah</p>
+        <p>Maklumat murid adalah SULIT dan hanya boleh diakses oleh pengguna yang diluluskan.</p>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var cfg = window.EDISIPLIN_CONFIG || {};
+      var url = String(cfg.APP_URL || '');
+      var valid = /^https:\/\/script\.google\.com\/[A-Za-z0-9_.\/-]*\/s\/[A-Za-z0-9_-]+\/exec$/.test(url);
+      var go = function (view) { return valid ? url + '?view=' + view : '#'; };
+      document.getElementById('btn-login').href = go('login');
+      document.getElementById('btn-register').href = go('register');
+      if (!valid) {
+        var w = document.getElementById('cfg-warn');
+        w.textContent = 'Pentadbir: sila tetapkan APP_URL dalam config.js kepada URL Web App Apps Script (berakhir dengan /exec).';
+        w.classList.remove('hidden');
+        ['btn-login', 'btn-register'].forEach(function (id) { document.getElementById(id).addEventListener('click', function (e) { e.preventDefault(); }); });
+      }
+      if (cfg.NAMA_SEKOLAH) { var s = document.getElementById('school'); s.textContent = cfg.NAMA_SEKOLAH; s.classList.remove('hidden'); }
+      try { lucide.createIcons(); } catch (e) {}
+    })();
+  </script>
+</body>
+</html>

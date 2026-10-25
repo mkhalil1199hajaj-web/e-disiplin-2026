@@ -1,0 +1,381 @@
+<script>
+'use strict';
+/* =====================================================================
+ * JsCore — keadaan aplikasi, sambungan API, utiliti UI, log masuk & sesi
+ * Token sesi disimpan dalam memori sahaja (tiada localStorage).
+ * ===================================================================== */
+
+const S = {
+  token: null, user: null, settings: null, view: null, params: {},
+  timeoutMin: 30, lastActivity: Date.now(), lastServer: Date.now(), warned: false,
+  timers: [], charts: [], unread: 0, boot: null
+};
+
+const PRIV = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'];
+const ROLE_LABEL = { ADMIN: 'Admin', GURU_DISIPLIN: 'Guru Disiplin', PK_HEM: 'PK HEM', PENGETUA: 'Pengetua', GURU_BIASA: 'Guru Biasa' };
+const STATUS_LABEL = { DRAF: 'Draf', DIHANTAR: 'Dihantar', DALAM_SEMAKAN: 'Dalam Semakan', DALAM_TINDAKAN: 'Dalam Tindakan', SELESAI: 'Selesai', DIPULANGKAN: 'Dipulangkan' };
+const STATUS_ORDER = ['DIHANTAR', 'DALAM_SEMAKAN', 'DALAM_TINDAKAN', 'SELESAI', 'DIPULANGKAN'];
+const BULAN = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
+const BULAN_PENUH = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
+
+const isPriv = () => !!S.user && PRIV.includes(S.user.role);
+const hasRole = (...r) => !!S.user && r.includes(S.user.role);
+
+/* ---------- utiliti ---------- */
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v).replace(/[&<>"'`]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]));
+}
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+function fmtDate(iso) { if (!iso) return '-'; const p = String(iso).slice(0, 10).split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : iso; }
+function fmtDateTime(iso) { if (!iso) return '-'; const t = String(iso).slice(11, 16); return fmtDate(iso) + (t ? ' ' + t : ''); }
+function todayYmd() { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function nowHm() { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function initials(n) { return String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
+function fmtBytes(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+function icons() { try { lucide.createIcons(); } catch (e) { /* ikon gagal dimuat */ } }
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+/** "3" + "3 Bestari" -> "3 Bestari"; "3" + "Bestari" -> "3 Bestari" */
+function kelasLabel(t, k) { t = String(t || ''); k = String(k || ''); if (!k) return t ? (/^\d$/.test(t) ? 'T' + t : t) : ''; return t && !k.startsWith(t) ? t + ' ' + k : k; }
+function badge(status) { return `<span class="badge st-${esc(status)}">${esc(STATUS_LABEL[status] || status)}</span>`; }
+function tahapBadge(t) { return t ? `<span class="badge tp-${esc(t)}">${esc(t)}</span>` : ''; }
+
+/* ---------- API ---------- */
+function api(fn, ...args) {
+  return new Promise((resolve, reject) => {
+    google.script.run
+      .withSuccessHandler(r => {
+        if (!r || typeof r !== 'object') return reject({ code: 'RALAT', message: 'Tiada respons daripada pelayan.' });
+        if (r.ok) return resolve(r.data);
+        if (S.token && ['SESI_TAMAT', 'AKAUN_TIDAK_AKTIF'].includes(r.error.code)) sessionEnded(r.error.message);
+        reject(r.error);
+      })
+      .withFailureHandler(e => reject({ code: 'RANGKAIAN', message: (e && e.message) || 'Sambungan ke pelayan gagal. Semak internet anda.' }))[fn](...args);
+  });
+}
+/** Panggilan berpengesahan: token sentiasa dihantar sebagai argumen pertama. */
+function callT(fn, payload) { S.lastServer = Date.now(); return api(fn, S.token, payload || {}); }
+
+/* ---------- UI ---------- */
+function loading(on, text) {
+  $('#loading').classList.toggle('hidden', !on);
+  if (text) $('#loading-text').textContent = text;
+}
+const Toast = (typeof Swal !== 'undefined') ? Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3200, timerProgressBar: true }) : null;
+function toast(msg, icon = 'success') { if (Toast) Toast.fire({ icon, title: msg }); }
+function alertErr(e, title = 'Tidak berjaya') {
+  const msg = (e && e.message) || String(e);
+  return Swal.fire({ icon: 'error', title, text: msg, confirmButtonText: 'OK' });
+}
+async function confirmBox(title, html, confirmText = 'Ya, teruskan', icon = 'question') {
+  const r = await Swal.fire({ icon, title, html, showCancelButton: true, confirmButtonText: confirmText, cancelButtonText: 'Batal', reverseButtons: true, focusCancel: true });
+  return r.isConfirmed;
+}
+async function withLoading(text, fn) {
+  loading(true, text);
+  try { return await fn(); } finally { loading(false); }
+}
+function emptyState(title, sub, icon = 'inbox') {
+  return `<div class="py-12 text-center"><div class="mx-auto h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center"><i data-lucide="${icon}" class="h-6 w-6 text-slate-400"></i></div>
+    <p class="mt-3 font-semibold text-slate-700">${esc(title)}</p>${sub ? `<p class="text-sm text-slate-500 mt-1">${esc(sub)}</p>` : ''}</div>`;
+}
+function setTitle(t, sub) { $('#page-title').textContent = t; $('#page-sub').textContent = sub || ''; document.title = t + ' · e-DISIPLIN MURID 2026'; }
+function destroyCharts() { S.charts.forEach(c => { try { c.destroy(); } catch (e) {} }); S.charts = []; }
+function downloadText(filename, text, mime) {
+  const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+/* =====================================================================
+ * Boot, log masuk, daftar
+ * ===================================================================== */
+async function boot() {
+  try {
+    const info = await api('getBootInfo');
+    S.boot = info;
+    renderAuth(info);
+  } catch (e) {
+    renderAuthMessage('Sistem tidak dapat dicapai', e.message || 'Sila muat semula halaman.', 'triangle-alert');
+  } finally {
+    $('#boot').classList.add('hidden');
+  }
+}
+
+function authLayout(inner) {
+  return `<div class="auth-bg min-h-screen relative overflow-hidden">
+    <div class="absolute inset-0 grid-pattern"></div>
+    <div class="relative min-h-screen grid lg:grid-cols-2">
+      <div class="hidden lg:flex flex-col justify-between p-12 text-white">
+        <div class="flex items-center gap-3">
+          <div class="h-11 w-11 rounded-xl bg-gold-500/15 ring-1 ring-gold-400/40 flex items-center justify-center"><i data-lucide="shield-check" class="h-6 w-6 text-gold-400"></i></div>
+          <div><p class="font-extrabold tracking-tight">e-DISIPLIN</p><p class="text-[11px] tracking-[0.2em] text-gold-400 font-semibold">MURID 2026</p></div>
+        </div>
+        <div class="max-w-md fade-in">
+          <p class="text-gold-400 text-xs font-bold tracking-[0.25em]">SISTEM PELAPORAN KES DISIPLIN SEKOLAH</p>
+          <h2 class="mt-4 text-4xl font-extrabold leading-tight">Pelaporan Pantas, Pengurusan Sistematik, Sekolah Harmoni</h2>
+          <div class="mt-8 grid grid-cols-3 gap-3 text-sm">
+            ${[['file-plus-2', 'Lapor secara digital'], ['list-checks', 'Aliran kerja jelas'], ['lock', 'Akses ikut peranan']].map(([i, t]) => `
+              <div class="rounded-xl bg-white/5 ring-1 ring-white/10 p-3"><i data-lucide="${i}" class="h-5 w-5 text-gold-400"></i><p class="mt-2 text-white/80 text-xs leading-snug">${t}</p></div>`).join('')}
+          </div>
+        </div>
+        <p class="text-xs text-white/40">Maklumat murid adalah SULIT dan dilindungi.</p>
+      </div>
+      <div class="flex items-center justify-center p-4 sm:p-8">
+        <div class="w-full max-w-md fade-in">${inner}</div>
+      </div>
+    </div></div>`;
+}
+
+function showAuth(html) {
+  $('#app-root').classList.add('hidden');
+  const root = $('#auth-root');
+  root.innerHTML = authLayout(html);
+  root.classList.remove('hidden');
+  icons();
+}
+
+function authCard(title, sub, body) {
+  return `<div class="rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 overflow-hidden">
+    <div class="px-6 sm:px-8 pt-7 pb-5 border-b border-slate-100">
+      <div class="lg:hidden flex items-center gap-2 mb-4"><i data-lucide="shield-check" class="h-5 w-5 text-gold-500"></i><span class="font-extrabold text-navy-900 text-sm">e-DISIPLIN MURID 2026</span></div>
+      <h2 class="text-xl font-extrabold text-navy-900">${title}</h2>
+      ${sub ? `<p class="mt-1 text-sm text-slate-500">${sub}</p>` : ''}
+    </div>
+    <div class="px-6 sm:px-8 py-6">${body}</div></div>`;
+}
+
+function renderAuthMessage(title, msg, icon = 'info', extra = '') {
+  showAuth(authCard(esc(title), '', `<div class="flex gap-3"><i data-lucide="${icon}" class="h-6 w-6 text-royal-600 shrink-0"></i><p class="text-sm text-slate-600 leading-relaxed">${esc(msg)}</p></div>${extra}
+    <button onclick="location.reload()" class="btn btn-ghost w-full mt-6"><i data-lucide="refresh-cw"></i> Muat semula</button>`));
+}
+
+function renderAuth(info) {
+  const st = info.state;
+  if (st === 'TIADA_IDENTITI' || st === 'DOMAIN_DITOLAK') {
+    return renderAuthMessage('Akaun tidak dikenali', info.message, 'shield-alert',
+      `<p class="mt-4 text-xs text-slate-500">Log keluar dan log masuk semula menggunakan akaun Google rasmi sekolah (contoh akaun DELIMa), kemudian buka pautan sistem ini sekali lagi.</p>`);
+  }
+  if (st === 'TIADA_DB') return renderAuthMessage('Sistem belum disediakan', info.message, 'database');
+  if (st === 'BELUM_DAFTAR') return renderRegister(info);
+  if (st === 'MENUNGGU_KELULUSAN') {
+    return showAuth(authCard('Menunggu kelulusan Admin', '', `
+      <div class="rounded-xl bg-gold-100 border border-gold-200 p-4 flex gap-3"><i data-lucide="clock" class="h-5 w-5 text-gold-600 shrink-0"></i>
+      <p class="text-sm text-navy-800">Pendaftaran untuk <b>${esc(info.email)}</b> telah diterima dan sedang menunggu kelulusan Admin sekolah. Anda boleh log masuk selepas akaun diluluskan.</p></div>
+      <button onclick="location.reload()" class="btn btn-ghost w-full mt-6"><i data-lucide="refresh-cw"></i> Semak status</button>`));
+  }
+  if (st === 'DITOLAK' || st === 'NYAHAKTIF') {
+    return renderAuthMessage('Akaun tidak aktif', st === 'DITOLAK' ? 'Pendaftaran anda tidak diluluskan. Sila hubungi Admin sekolah.' : 'Akaun anda telah dinyahaktifkan. Sila hubungi Admin sekolah.', 'user-x');
+  }
+  if (st === 'AKTIF') return renderLogin(info);
+  renderAuthMessage('Status tidak diketahui', 'Sila hubungi Admin sekolah.', 'info');
+}
+
+function renderLogin(info, notice) {
+  showAuth(authCard('Log Masuk', esc(info.sekolah || ''), `
+    ${notice ? `<div class="mb-4 rounded-xl bg-royal-50 border border-royal-100 p-3 text-sm text-navy-800 flex gap-2"><i data-lucide="info" class="h-4 w-4 mt-0.5 text-royal-600 shrink-0"></i><span>${esc(notice)}</span></div>` : ''}
+    <label class="lbl">E-mel / akaun Google</label>
+    <div class="inp flex items-center gap-2 bg-slate-50"><i data-lucide="badge-check" class="h-4 w-4 text-emerald-600"></i><span class="truncate">${esc(info.email)}</span></div>
+    <p class="hint">Pengesahan identiti dan kata laluan diurus oleh akaun Google sekolah anda. Sistem ini tidak menyimpan kata laluan.</p>
+    <button id="btn-login" class="btn btn-primary w-full mt-5 py-3"><i data-lucide="log-in"></i> LOG MASUK</button>
+    <div class="mt-5 grid grid-cols-2 gap-2 text-xs">
+      <a href="https://accounts.google.com/signin/v2/recoveryidentifier" target="_blank" rel="noopener" class="text-royal-600 font-semibold hover:underline">Lupa kata laluan?</a>
+      <a href="https://accounts.google.com/AccountChooser" target="_blank" rel="noopener" class="text-right text-royal-600 font-semibold hover:underline">Guna akaun lain</a>
+    </div>`));
+  $('#btn-login').addEventListener('click', doLogin);
+}
+
+async function doLogin() {
+  const btn = $('#btn-login');
+  btn.disabled = true; btn.innerHTML = '<span class="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin"></span> Mengesahkan…';
+  try {
+    const res = await api('startSession');
+    S.token = res.token; S.user = res.user; S.settings = res.settings; S.timeoutMin = res.timeoutMin;
+    $('#auth-root').classList.add('hidden'); $('#auth-root').innerHTML = '';
+    startApp();
+  } catch (e) {
+    btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> LOG MASUK'; icons();
+    if (e.code === 'MENUNGGU_KELULUSAN' || e.code === 'AKAUN_TIDAK_AKTIF' || e.code === 'BELUM_DAFTAR') return boot();
+    alertErr(e, 'Log masuk gagal');
+  }
+}
+
+function renderRegister(info) {
+  const opts = (info.jawatan || ['Guru Biasa', 'Guru Disiplin', 'PK HEM', 'Pengetua']).map(j => `<option>${esc(j)}</option>`).join('');
+  showAuth(authCard('Daftar Akaun', 'Untuk guru yang belum mempunyai akaun e-DISIPLIN', `
+    <form id="reg-form" class="space-y-4" novalidate>
+      <div class="field"><label class="req">Nama penuh guru</label><input name="nama" class="inp" maxlength="120" autocomplete="name" required></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="field"><label class="req">ID Guru</label><input name="idGuru" class="inp uppercase" maxlength="30" required></div>
+        <div class="field"><label>No. telefon (pilihan)</label><input name="telefon" class="inp" inputmode="tel" maxlength="20" placeholder="012-3456789"></div>
+      </div>
+      <div class="field"><label>E-mel rasmi</label><input class="inp" value="${esc(info.email)}" readonly><p class="hint">Diambil daripada akaun Google yang sedang log masuk.</p></div>
+      <div class="field"><label class="req">Nama sekolah</label><input name="sekolah" class="inp" maxlength="150" value="${esc(info.sekolah || '')}" required></div>
+      <div class="field"><label class="req">Jawatan</label><select name="jawatan" class="inp" required>${opts}</select>
+        <p class="hint">Peranan sebenar dalam sistem akan ditetapkan oleh Admin selepas semakan.</p></div>
+      <div class="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 flex gap-2"><i data-lucide="key-round" class="h-4 w-4 shrink-0 text-slate-500"></i>
+        <span>Tiada kata laluan berasingan diperlukan. Anda log masuk menggunakan akaun Google sekolah yang sama.</span></div>
+      <button class="btn btn-primary w-full py-3"><i data-lucide="user-plus"></i> DAFTAR AKAUN</button>
+    </form>`));
+  $('#reg-form').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const f = Object.fromEntries(new FormData(ev.target).entries());
+    if (!f.nama || f.nama.trim().length < 3) return alertErr({ message: 'Nama penuh wajib diisi (sekurang-kurangnya 3 aksara).' });
+    if (!f.idGuru || !/^[A-Za-z0-9\-\/]+$/.test(f.idGuru.trim())) return alertErr({ message: 'ID Guru wajib diisi dan hanya mengandungi huruf, nombor, "-" atau "/".' });
+    if (f.telefon && !/^\+?[0-9\- ]{8,20}$/.test(f.telefon.trim())) return alertErr({ message: 'Nombor telefon tidak sah.' });
+    try {
+      await withLoading('Menghantar pendaftaran…', () => api('registerUser', f));
+      renderAuth({ state: 'MENUNGGU_KELULUSAN', email: info.email });
+    } catch (e) { alertErr(e, 'Pendaftaran gagal'); }
+  });
+}
+
+/* =====================================================================
+ * Shell aplikasi, menu & penghala
+ * ===================================================================== */
+const MENU = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+  { id: 'buat', label: 'Buat Laporan', icon: 'file-plus-2' },
+  { id: 'senarai', label: () => isPriv() ? 'Senarai Laporan' : 'Laporan Saya', icon: 'files' },
+  { id: 'tindakan', label: 'Tindakan Disiplin', icon: 'gavel', roles: ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM'] },
+  { id: 'statistik', label: 'Statistik', icon: 'chart-column', roles: PRIV },
+  { id: 'notifikasi', label: 'Notifikasi', icon: 'bell', badge: true },
+  { id: 'pdf', label: 'Muat Turun PDF', icon: 'file-down' },
+  { id: 'pengguna', label: 'Pengurusan Pengguna', icon: 'users', roles: ['ADMIN'] },
+  { id: 'tetapan', label: 'Tetapan', icon: 'settings' }
+];
+
+const VIEWS = {}; // diisi oleh fail JS lain: VIEWS.dashboard = fn ...
+
+function startApp() {
+  $('#app-root').classList.remove('hidden');
+  $('#sb-school').textContent = S.settings.namaSekolah || '';
+  $('#sb-name').textContent = S.user.nama;
+  $('#sb-role').textContent = ROLE_LABEL[S.user.role];
+  $('#sb-avatar').textContent = initials(S.user.nama);
+  renderMenu();
+  $('#btn-logout').onclick = () => doLogout();
+  $('#btn-menu').onclick = () => toggleSidebar(true);
+  $('#sidebar-backdrop').onclick = () => toggleSidebar(false);
+  $('#btn-notif').onclick = () => go('notifikasi');
+  $('#btn-new').onclick = () => go('buat');
+  startIdleWatch();
+  refreshNotifBadge();
+  S.timers.push(setInterval(refreshNotifBadge, 60000));
+  go('dashboard');
+}
+
+function renderMenu() {
+  $('#menu').innerHTML = MENU.filter(m => !m.roles || m.roles.includes(S.user.role)).map(m => `
+    <button class="menu-item" data-view="${m.id}"><i data-lucide="${m.icon}"></i><span class="flex-1">${esc(typeof m.label === 'function' ? m.label() : m.label)}</span>
+    ${m.badge ? '<span id="menu-badge" class="hidden min-w-[20px] h-5 px-1.5 rounded-full bg-gold-500 text-navy-900 text-[11px] font-bold flex items-center justify-center"></span>' : ''}</button>`).join('')
+    + `<button class="menu-item lg:hidden" id="menu-logout"><i data-lucide="log-out"></i><span>Log Keluar</span></button>`;
+  $$('#menu .menu-item[data-view]').forEach(b => b.onclick = () => go(b.dataset.view));
+  $('#menu-logout').onclick = () => doLogout();
+  icons();
+}
+
+function toggleSidebar(open) {
+  $('#sidebar').classList.toggle('-translate-x-full', !open);
+  $('#sidebar-backdrop').classList.toggle('hidden', !open);
+}
+
+async function go(view, params = {}) {
+  if (!S.token) return;
+  const menuEntry = MENU.find(m => m.id === view);
+  if (menuEntry && menuEntry.roles && !menuEntry.roles.includes(S.user.role)) view = 'dashboard';
+  S.view = view; S.params = params;
+  $$('#menu .menu-item').forEach(b => b.classList.toggle('active', b.dataset.view === view || (view === 'detail' && b.dataset.view === 'senarai')));
+  toggleSidebar(false);
+  destroyCharts();
+  const main = $('#main');
+  main.innerHTML = `<div class="py-20 flex justify-center"><div class="h-8 w-8 rounded-full border-[3px] border-royal-200 border-t-royal-600 animate-spin"></div></div>`;
+  window.scrollTo(0, 0);
+  try {
+    const fn = VIEWS[view] || VIEWS.dashboard;
+    await fn(main, params);
+  } catch (e) {
+    if (!S.token) return;
+    main.innerHTML = `<div class="card card-b">${emptyState('Tidak dapat memaparkan halaman', e.message || 'Ralat tidak diketahui', 'triangle-alert')}
+      <div class="text-center"><button class="btn btn-ghost" onclick="go('${esc(view)}')"><i data-lucide="refresh-cw"></i> Cuba lagi</button></div></div>`;
+  }
+  main.classList.remove('fade-in'); void main.offsetWidth; main.classList.add('fade-in');
+  icons();
+}
+
+/* =====================================================================
+ * Sesi: tamat masa tidak aktif & log keluar
+ * ===================================================================== */
+function startIdleWatch() {
+  const mark = () => { S.lastActivity = Date.now(); if (S.warned) S.warned = false; };
+  ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'].forEach(ev => window.addEventListener(ev, mark, { passive: true }));
+  S.timers.push(setInterval(() => {
+    if (!S.token) return;
+    const idle = Date.now() - S.lastActivity;
+    const limit = S.timeoutMin * 60000;
+    if (idle >= limit) return doLogout('Sesi anda telah tamat kerana tidak aktif selama ' + S.timeoutMin + ' minit.');
+    if (idle >= limit - 60000 && !S.warned) { S.warned = true; toast('Sesi akan tamat dalam 1 minit kerana tidak aktif.', 'warning'); }
+    // Pastikan sesi pelayan tidak tamat semasa pengguna masih aktif membaca/menaip.
+    if (Date.now() - S.lastServer > 4 * 60000 && idle < 4 * 60000) callT('ping').catch(() => {});
+  }, 15000));
+}
+
+function clearState() {
+  S.timers.forEach(t => clearInterval(t)); S.timers = [];
+  destroyCharts();
+  S.token = null; S.user = null; S.settings = null; S.view = null; S.params = {};
+  if (window.FORM) window.FORM = null;
+  $('#main').innerHTML = ''; $('#menu').innerHTML = '';
+  $('#sb-name').textContent = ''; $('#sb-role').textContent = ''; $('#sb-school').textContent = '';
+  $('#app-root').classList.add('hidden');
+  try { Swal.close(); } catch (e) {}
+}
+
+async function doLogout(reason) {
+  const token = S.token;
+  if (!reason) {
+    const ok = await confirmBox('Log keluar?', 'Sesi anda akan ditamatkan.', 'Log keluar', 'question');
+    if (!ok) return;
+  }
+  clearState();
+  if (token) { try { await api('logout', token); } catch (e) { /* sesi tetap dibuang di pelayar */ } }
+  showLoggedOut(reason);
+}
+
+function sessionEnded(msg) { if (!S.token) return; clearState(); showLoggedOut(msg); }
+
+function showLoggedOut(reason) {
+  showAuth(authCard('Anda telah log keluar', '', `
+    ${reason ? `<div class="mb-4 rounded-xl bg-gold-100 border border-gold-200 p-3 text-sm text-navy-800">${esc(reason)}</div>` : ''}
+    <p class="text-sm text-slate-600">Sesi e-DISIPLIN telah ditamatkan dan data sesi telah dikosongkan daripada pelayar ini.</p>
+    <button onclick="boot()" class="btn btn-primary w-full mt-5 py-3"><i data-lucide="log-in"></i> Log masuk semula</button>
+    <a href="https://accounts.google.com/Logout" target="_blank" rel="noopener" class="btn btn-ghost w-full mt-2"><i data-lucide="log-out"></i> Log keluar daripada akaun Google juga</a>
+    <p class="hint text-center mt-3">Gunakan pilihan kedua pada komputer awam / dikongsi.</p>`));
+}
+
+/* ---------- notifikasi ---------- */
+async function refreshNotifBadge() {
+  if (!S.token) return;
+  try {
+    const r = await callT('getNotifications', { limit: 1 });
+    S.unread = r.unread;
+    const dot = $('#notif-dot'), mb = $('#menu-badge');
+    [dot, mb].forEach(el => { if (!el) return; el.textContent = r.unread > 99 ? '99+' : r.unread; el.classList.toggle('hidden', !r.unread); });
+  } catch (e) { /* senyap */ }
+}
+
+/* ---------- carta ---------- */
+const CH = { navy: '#10284f', royal: '#2453c7', gold: '#d4a017', sky: '#60a5fa', slate: '#94a3b8', red: '#dc2626', green: '#16a34a', orange: '#ea580c', amber: '#f59e0b', teal: '#0d9488', violet: '#7c3aed', pink: '#db2777' };
+const PALETTE = [CH.royal, CH.gold, CH.navy, CH.teal, CH.orange, CH.violet, CH.sky, CH.pink, CH.green, CH.slate, CH.red, CH.amber];
+function makeChart(canvasId, config) {
+  const el = document.getElementById(canvasId);
+  if (!el || typeof Chart === 'undefined') return;
+  Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
+  Chart.defaults.color = '#475569';
+  config.options = Object.assign({ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, usePointStyle: true } } } }, config.options || {});
+  S.charts.push(new Chart(el, config));
+}
+const intAxis = { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eef2f7' } };
+</script>
