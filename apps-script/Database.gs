@@ -147,7 +147,7 @@ function setupDatabase() {
   if (!owner) {
     insert_('USERS', {
       UserID: shortId_('USR'), NamaPenuh: 'Pentadbir Sistem', IDGuru: 'ADMIN', Email: ownerEmail, Telefon: '',
-      Sekolah: getSetting_('NAMA_SEKOLAH'), Jawatan: 'Admin', Role: ROLES.ADMIN, AuthProviderID: 'GOOGLE',
+      Sekolah: getSetting_('NAMA_SEKOLAH'), Jawatan: 'Admin', Role: ROLES.ADMIN, AuthProviderID: 'GOOGLE:OWNER',
       StatusAkaun: ACCOUNT.AKTIF, TarikhDaftar: nowIso_(), LastLogin: '', DiluluskanOleh: 'SISTEM', TarikhLulus: nowIso_()
     });
     log.push('Admin pertama dicipta untuk ' + ownerEmail + ' (kemas kini nama & ID Guru di Tetapan).');
@@ -158,7 +158,8 @@ function setupDatabase() {
 
   writeAuditLog_({ userId: owner ? owner.UserID : 'SISTEM', email: ownerEmail }, 'SETUP_DATABASE', '', 'BERJAYA', log.length + ' langkah');
   log.push('URL database: ' + ss.getUrl());
-  log.push('SELESAI. Seterusnya: Deploy > New deployment > Web app.');
+  if (!prop_('GOOGLE_CLIENT_ID')) log.push('PERHATIAN: tetapkan GOOGLE_CLIENT_ID dalam Script Properties sebelum pengguna boleh log masuk.');
+  log.push('SELESAI. Seterusnya: Deploy > New deployment > Web app (Execute as: Me, Who has access: Anyone).');
   Logger.log(log.join('\n'));
   return log;
 }
@@ -187,7 +188,7 @@ function diagnose() {
   var out = [];
   out.push('Pengguna aktif: ' + (Session.getActiveUser().getEmail() || '(kosong)'));
   out.push('Pengguna efektif (pemilik): ' + Session.getEffectiveUser().getEmail());
-  ['SPREADSHEET_ID', 'ATTACHMENT_FOLDER_ID', 'BACKUP_FOLDER_ID', 'ASSET_FOLDER_ID', 'ALLOWED_DOMAINS'].forEach(function (k) {
+  ['GOOGLE_CLIENT_ID', 'SPREADSHEET_ID', 'ATTACHMENT_FOLDER_ID', 'BACKUP_FOLDER_ID', 'ASSET_FOLDER_ID', 'ALLOWED_DOMAINS'].forEach(function (k) {
     out.push(k + ': ' + (prop_(k) || '(belum ditetapkan)'));
   });
   try {

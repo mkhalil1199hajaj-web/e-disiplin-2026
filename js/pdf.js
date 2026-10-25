@@ -1,4 +1,3 @@
-<script>
 'use strict';
 /* =====================================================================
  * JsPdf — laporan PDF A4 (jsPDF + autoTable)
@@ -218,4 +217,3 @@ async function generateSummaryPdf(year, month) {
   pdfFooter(doc, `${title} · ${period} · Dijana oleh ${data.generatedBy} (${data.generatedRole}) pada ${fmtDateTime(data.generatedAt)}`);
   outputPdf(doc, `Laporan-Disiplin-${month ? year + '-' + String(month).padStart(2, '0') : year}.pdf`, 'save', '');
 }
-</script>

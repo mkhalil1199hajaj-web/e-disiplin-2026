@@ -62,8 +62,7 @@
           <a id="btn-register" href="#" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-royal-600 hover:bg-royal-700 px-6 py-3.5 font-extrabold transition"><i data-lucide="user-plus" class="h-5 w-5"></i> DAFTAR AKAUN</a>
           <a href="panduan.html" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-white/5 hover:bg-white/10 ring-1 ring-white/15 px-6 py-3.5 font-extrabold transition"><i data-lucide="book-open" class="h-5 w-5"></i> PANDUAN PENGGUNA</a>
         </div>
-        <p id="cfg-warn" class="hidden mt-4 text-sm text-gold-400"></p>
-        <p class="rise d5 mt-6 flex items-center gap-2 text-xs text-white/45"><i data-lucide="lock" class="h-3.5 w-3.5"></i> Log masuk menggunakan akaun Google rasmi sekolah. Akaun baharu perlu diluluskan oleh Admin.</p>
+                <p class="rise d5 mt-6 flex items-center gap-2 text-xs text-white/45"><i data-lucide="lock" class="h-3.5 w-3.5"></i> Log masuk menggunakan akaun Google anda. Akaun baharu perlu diluluskan oleh Admin.</p>
       </section>
 
       <section class="lg:col-span-5 relative hidden lg:block mb-10" aria-hidden="true">
@@ -106,17 +105,8 @@
   <script>
     (function () {
       var cfg = window.EDISIPLIN_CONFIG || {};
-      var url = String(cfg.APP_URL || '');
-      var valid = /^https:\/\/script\.google\.com\/[A-Za-z0-9_.\/-]*\/s\/[A-Za-z0-9_-]+\/exec$/.test(url);
-      var go = function (view) { return valid ? url + '?view=' + view : '#'; };
-      document.getElementById('btn-login').href = go('login');
-      document.getElementById('btn-register').href = go('register');
-      if (!valid) {
-        var w = document.getElementById('cfg-warn');
-        w.textContent = 'Pentadbir: sila tetapkan APP_URL dalam config.js kepada URL Web App Apps Script (berakhir dengan /exec).';
-        w.classList.remove('hidden');
-        ['btn-login', 'btn-register'].forEach(function (id) { document.getElementById(id).addEventListener('click', function (e) { e.preventDefault(); }); });
-      }
+      document.getElementById('btn-login').href = 'app.html';
+      document.getElementById('btn-register').href = 'app.html?view=register';
       if (cfg.NAMA_SEKOLAH) { var s = document.getElementById('school'); s.textContent = cfg.NAMA_SEKOLAH; s.classList.remove('hidden'); }
       try { lucide.createIcons(); } catch (e) {}
     })();

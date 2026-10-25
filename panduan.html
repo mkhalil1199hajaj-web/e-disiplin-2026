@@ -31,7 +31,7 @@
         <span class="h-10 w-10 rounded-xl bg-gold-500/15 ring-1 ring-gold-400/40 flex items-center justify-center"><i data-lucide="shield-check" class="h-5 w-5 text-gold-400"></i></span>
         <span><span class="block font-extrabold leading-tight">e-DISIPLIN</span><span class="block text-[11px] tracking-[0.2em] text-gold-400 font-semibold">MURID 2026</span></span>
       </a>
-      <a id="btn-app" href="index.html" class="inline-flex items-center gap-2 rounded-lg bg-gold-500 text-navy-900 px-4 py-2 text-sm font-extrabold"><i data-lucide="log-in" class="h-4 w-4"></i> LOG MASUK</a>
+      <a id="btn-app" href="app.html" class="inline-flex items-center gap-2 rounded-lg bg-gold-500 text-navy-900 px-4 py-2 text-sm font-extrabold"><i data-lucide="log-in" class="h-4 w-4"></i> LOG MASUK</a>
     </div>
     <div class="max-w-5xl mx-auto px-5 sm:px-8 pb-10 pt-4">
       <h1 class="text-3xl sm:text-4xl font-extrabold">Panduan Pengguna</h1>
@@ -56,16 +56,16 @@
         <h2 class="text-xl font-extrabold text-navy-900 flex items-center gap-2"><i data-lucide="rocket" class="h-5 w-5 text-gold-500"></i> 1. Bermula</h2>
         <h3>Daftar akaun (sekali sahaja)</h3>
         <ol>
-          <li>Log masuk ke akaun Google rasmi sekolah anda (contoh akaun DELIMa) dalam pelayar.</li>
           <li>Klik <b>DAFTAR AKAUN</b> di halaman utama.</li>
+          <li>Klik <b>Sign up with Google</b> dan pilih akaun Google anda (Gmail atau akaun DELIMa sekolah).</li>
           <li>Isi nama penuh, ID Guru, nombor telefon (pilihan), nama sekolah dan jawatan. E-mel diambil terus daripada akaun Google anda.</li>
           <li>Klik <b>DAFTAR AKAUN</b>. Status anda akan menjadi <span class="pill bg-amber-100 text-amber-800">Menunggu kelulusan Admin</span>.</li>
           <li>Selepas Admin meluluskan dan menetapkan peranan anda, anda boleh log masuk.</li>
         </ol>
         <h3>Log masuk dan log keluar</h3>
         <ul>
-          <li>Klik <b>LOG MASUK</b>, semak e-mel yang dipaparkan, kemudian klik <b>LOG MASUK</b> sekali lagi.</li>
-          <li>Tiada kata laluan berasingan. Kata laluan dan pemulihan akaun diurus oleh Google. Jika terlupa kata laluan, gunakan pautan <b>Lupa kata laluan?</b> atau hubungi pentadbir akaun DELIMa sekolah.</li>
+          <li>Klik <b>LOG MASUK</b>, klik <b>Sign in with Google</b> dan pilih akaun anda, kemudian klik <b>LOG MASUK</b>.</li>
+          <li>Tiada kata laluan berasingan. Kata laluan dan pemulihan akaun diurus oleh Google. Jika terlupa kata laluan Google, gunakan pautan <b>Lupa kata laluan?</b> (atau hubungi pentadbir DELIMa sekolah untuk akaun DELIMa).</li>
           <li>Klik <b>LOG KELUAR</b> di bahagian bawah menu apabila selesai. Pada komputer dikongsi, pilih juga <b>Log keluar daripada akaun Google</b>.</li>
           <li>Sesi tamat secara automatik selepas tempoh tidak aktif (lalai 30 minit).</li>
         </ul>
@@ -147,9 +147,9 @@
       <section id="soalan" class="rounded-2xl bg-white ring-1 ring-slate-200 p-6 prose-g">
         <h2 class="text-xl font-extrabold text-navy-900 flex items-center gap-2"><i data-lucide="circle-help" class="h-5 w-5 text-gold-500"></i> 8. Soalan lazim</h2>
         <h3>"Akaun tidak dikenali" semasa membuka sistem</h3>
-        <p>Anda sedang log masuk dengan akaun Google peribadi atau akaun luar domain sekolah. Log keluar, log masuk dengan akaun sekolah, dan buka pautan sekali lagi. Jika anda log masuk ke beberapa akaun Google, buka sistem dalam tetingkap inkognito dengan akaun sekolah sahaja.</p>
+        <p>Log masuk Google anda telah tamat atau akaun anda bukan daripada domain yang dibenarkan oleh sekolah. Klik <b>Log masuk dengan akaun lain</b> dan pilih akaun yang betul.</p>
         <h3>PDF tidak dimuat turun</h3>
-        <p>Klik "Buka di tab baharu" pada makluman yang muncul, kemudian simpan dari situ. Benarkan pop-up untuk script.google.com jika pelayar menyekatnya.</p>
+        <p>Klik "Buka di tab baharu" pada makluman yang muncul, kemudian simpan dari situ. Benarkan pop-up untuk laman ini jika pelayar menyekatnya.</p>
         <h3>Saya tersilap selepas menghantar laporan</h3>
         <p>Hubungi Guru Disiplin supaya laporan dipulangkan untuk pembetulan. Laporan yang telah dihantar tidak boleh dipadam bagi menjaga integriti rekod.</p>
         <h3>Siapa yang boleh melihat laporan saya?</h3>
@@ -160,8 +160,6 @@
   <footer class="border-t border-slate-200 py-6 text-center text-xs text-slate-500">e-DISIPLIN MURID 2026 · Maklumat murid adalah SULIT</footer>
   <script>
     (function () {
-      var c = window.EDISIPLIN_CONFIG || {}, u = String(c.APP_URL || '');
-      if (/^https:\/\/script\.google\.com\/[A-Za-z0-9_.\/-]*\/s\/[A-Za-z0-9_-]+\/exec$/.test(u)) document.getElementById('btn-app').href = u + '?view=login';
       try { lucide.createIcons(); } catch (e) {}
     })();
   </script>

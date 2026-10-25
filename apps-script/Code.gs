@@ -1,15 +1,18 @@
 /**
  * e-DISIPLIN MURID 2026
- * Code.gs — titik masuk web app, pemalar sistem, pembalut respons & utiliti.
+ * Code.gs — titik masuk API (doPost), pemalar sistem, pembalut respons & utiliti.
  *
- * NOTA KESELAMATAN PENTING
- * Mana-mana fungsi global TANPA garis bawah (_) di hujung nama boleh dipanggil
- * dari pelayar melalui google.script.run. Oleh itu:
- *   - Semua fungsi awam mesti melalui secured_() / respond_() dan menyemak sesi.
- *   - Fungsi dalaman WAJIB berakhir dengan "_".
+ * SENI BINA
+ *   Pelayar (GitHub Pages) --fetch POST text/plain--> doPost --> fungsi dalam API_LIST.
+ *   Identiti: ID token "Sign in with Google" disahkan di pelayan (Auth.gs),
+ *   kemudian token sesi aplikasi digunakan untuk setiap permintaan.
+ *
+ * NOTA KESELAMATAN
+ *   - Hanya fungsi yang tersenarai dalam apiMap_() boleh dipanggil dari luar.
+ *   - Fungsi dalaman berakhir dengan "_".
  */
 
-var APP = { NAME: 'e-DISIPLIN MURID 2026', VERSION: '1.0.0', TZ: 'Asia/Kuala_Lumpur' };
+var APP = { NAME: 'e-DISIPLIN MURID 2026', VERSION: '1.1.0', TZ: 'Asia/Kuala_Lumpur' };
 
 var ROLES = { ADMIN: 'ADMIN', GD: 'GURU_DISIPLIN', PKHEM: 'PK_HEM', PENGETUA: 'PENGETUA', GURU: 'GURU_BIASA' };
 var ROLE_LIST = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA', 'GURU_BIASA'];
@@ -29,27 +32,65 @@ var STATUS_LABEL = {
 
 var ACCOUNT = { MENUNGGU: 'MENUNGGU_KELULUSAN', AKTIF: 'AKTIF', NYAHAKTIF: 'NYAHAKTIF', DITOLAK: 'DITOLAK' };
 
-var INITIAL_VIEWS = ['login', 'register'];
-
 /* ------------------------------------------------------------------ */
-/* Web app                                                             */
+/* Web app / API                                                       */
 /* ------------------------------------------------------------------ */
 
-function doGet(e) {
-  var view = (e && e.parameter && e.parameter.view) || 'login';
-  if (INITIAL_VIEWS.indexOf(view) < 0) view = 'login';
-  var t = HtmlService.createTemplateFromFile('Index');
-  t.initialView = view;
-  t.appVersion = APP.VERSION;
-  return t.evaluate()
-    .setTitle(APP.NAME)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=5')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
+var MAX_REQUEST_BYTES = 12 * 1024 * 1024;
+
+/** Senarai fungsi yang boleh dipanggil melalui doPost. Fungsi editor (setupDatabase dll.) TIDAK termasuk. */
+function apiMap_() {
+  return {
+    getBootInfo: getBootInfo, startSession: startSession, registerUser: registerUser, logout: logout, ping: ping,
+    getCurrentUser: getCurrentUser, getUserRole: getUserRole, updateMyProfile: updateMyProfile,
+    listUsers: listUsers, approveUser: approveUser, rejectUser: rejectUser, updateUserRole: updateUserRole, setUserStatus: setUserStatus,
+    createReport: createReport, saveDraft: saveDraft, updateReport: updateReport, submitReport: submitReport, deleteDraft: deleteDraft,
+    getMyReports: getMyReports, getAllReports: getAllReports, getReportById: getReportById, updateReportStatus: updateReportStatus,
+    setHandler: setHandler, addDisciplineAction: addDisciplineAction, addApproval: addApproval,
+    uploadEvidence: uploadEvidence, deleteAttachment: deleteAttachment, getAttachment: getAttachment,
+    getNotifications: getNotifications, markNotificationRead: markNotificationRead,
+    getDashboardStats: getDashboardStats, getSummaryReport: getSummaryReport, getReportForPdf: getReportForPdf,
+    getSchoolSettings: getSchoolSettings, updateSchoolSettings: updateSchoolSettings, uploadLogo: uploadLogo, getLogo: getLogo,
+    searchStudents: searchStudents, importStudents: importStudents, studentCount: studentCount,
+    writeAuditLog: writeAuditLog, getAuditLog: getAuditLog, verifyAuditChain: verifyAuditChain,
+    backupNow: backupNow, listBackups: listBackups, exportReportsCsv: exportReportsCsv
+  };
 }
 
-/** Digunakan oleh scriptlet dalam Index.html sahaja. */
-function include_(name) {
-  return HtmlService.createHtmlOutputFromFile(name).getContent();
+function jsonOut_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Semua panggilan daripada aplikasi: POST body = JSON {"fn": "...", "args": [...]}
+ * dihantar sebagai Content-Type text/plain (permintaan "simple", tiada CORS preflight).
+ */
+function doPost(e) {
+  var raw = (e && e.postData && e.postData.contents) || '';
+  if (!raw || raw.length > MAX_REQUEST_BYTES) {
+    return jsonOut_({ ok: false, error: { code: 'PERMINTAAN_TIDAK_SAH', message: 'Permintaan tidak sah atau terlalu besar.' } });
+  }
+  var req;
+  try { req = JSON.parse(raw); } catch (err) {
+    return jsonOut_({ ok: false, error: { code: 'PERMINTAAN_TIDAK_SAH', message: 'Format permintaan tidak sah.' } });
+  }
+  var map = apiMap_();
+  var name = req && typeof req.fn === 'string' ? req.fn : '';
+  if (!Object.prototype.hasOwnProperty.call(map, name)) {
+    return jsonOut_({ ok: false, error: { code: 'FUNGSI_TIDAK_DIKENALI', message: 'Fungsi tidak dikenali.' } });
+  }
+  var args = Array.isArray(req.args) ? req.args.slice(0, 3) : [];
+  var out;
+  try { out = map[name].apply(null, args); } catch (err) {
+    console.error(err && err.stack ? err.stack : String(err));
+    out = { ok: false, error: { code: 'RALAT_DALAMAN', message: 'Ralat dalaman pelayan.' } };
+  }
+  return jsonOut_(out);
+}
+
+/** GET hanya untuk semakan kesihatan. Aplikasi dibuka di GitHub Pages. */
+function doGet() {
+  return jsonOut_({ ok: true, app: APP.NAME, version: APP.VERSION, message: 'API e-DISIPLIN aktif. Buka aplikasi melalui laman GitHub Pages sekolah.' });
 }
 
 /* ------------------------------------------------------------------ */

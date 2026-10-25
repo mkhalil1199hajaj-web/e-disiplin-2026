@@ -1,4 +1,3 @@
-<script>
 'use strict';
 /* =====================================================================
  * JsViews — dashboard, senarai, butiran laporan, tindakan, statistik,
@@ -487,4 +486,3 @@ VIEWS.pdf = async (main) => {
   const sum = $('#pd-sum');
   if (sum) sum.onclick = () => generateSummaryPdf(Number($('#pd-year').value), Number($('#pd-month').value));
 };
-</script>

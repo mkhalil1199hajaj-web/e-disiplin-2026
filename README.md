@@ -3,9 +3,9 @@
 Sistem Pelaporan dan Pengurusan Kes Disiplin Sekolah.
 *Pelaporan Pantas, Pengurusan Sistematik, Sekolah Harmoni.*
 
-- **Backend + aplikasi**: Google Apps Script (HtmlService) + Google Sheets + Google Drive
-- **Landing page**: GitHub Pages
-- **Log masuk**: akaun Google sekolah (DELIMa / Google Workspace) — tiada kata laluan disimpan
+- **Aplikasi (UI)**: GitHub Pages — `index.html` (landing), `app.html` (aplikasi), `panduan.html`
+- **Backend**: Google Apps Script (`doPost` JSON API) + Google Sheets + Google Drive
+- **Log masuk**: "Sign in with Google" — token disahkan di pelayan, tiada kata laluan disimpan
 - **5 peranan**: Admin, Guru Disiplin, PK HEM, Pengetua, Guru Biasa — dikuatkuasakan di pelayan
 - **Aliran kerja**: Draf → Dihantar → Dalam Semakan → Dalam Tindakan → Selesai (+ Dipulangkan untuk Pembetulan)
 - **PDF A4**: laporan kes individu, ringkasan bulanan & tahunan
@@ -13,13 +13,12 @@ Sistem Pelaporan dan Pengurusan Kes Disiplin Sekolah.
 
 ## Mula pantas
 
-1. Akaun pemilik **mesti** akaun Google Workspace dalam domain yang sama dengan guru (contoh DELIMa).
-2. script.google.com → projek baharu → salin semua fail dalam `apps-script/`.
-3. Jalankan `setupDatabase()` → benarkan kebenaran.
-4. Script Properties: `ALLOWED_DOMAINS = moe-dl.edu.my` (atau domain sekolah).
-5. Jalankan `installBackupTrigger()`.
-6. Deploy → Web app → Execute as **Me** → Access **Anyone within domain**.
-7. Tampal URL `/exec` dalam `github-pages/config.js`, terbitkan folder `github-pages/` di GitHub Pages.
-8. Jalankan senarai semak ujian peranan dalam `PANDUAN.md` §6 sebelum guna data murid sebenar.
+1. script.google.com (akaun pemilik) → projek baharu → salin fail dalam `apps-script/`.
+2. Jalankan `setupDatabase()` dan `installBackupTrigger()`.
+3. Google Cloud Console → OAuth client ID (Web) → origin `https://<username>.github.io` → Publish app.
+4. Script Properties: `GOOGLE_CLIENT_ID = <client id>`.
+5. Deploy → Web app → Execute as **Me** → Who has access **Anyone** → salin URL `/exec`.
+6. Isi `APP_URL` dan `GOOGLE_CLIENT_ID` dalam `config.js`.
+7. Jalankan senarai semak ujian peranan dalam `PANDUAN.md` §6 sebelum guna data murid sebenar.
 
 Butiran penuh: **[PANDUAN.md](PANDUAN.md)**.

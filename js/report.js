@@ -1,4 +1,3 @@
-<script>
 'use strict';
 /* =====================================================================
  * JsReport — borang laporan disiplin (cipta, draf, hantar, lampiran)
@@ -235,4 +234,3 @@ async function onFilesPicked(ev) {
   }
   toast('Lampiran dimuat naik');
 }
-</script>

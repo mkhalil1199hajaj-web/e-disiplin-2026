@@ -1,4 +1,3 @@
-<script>
 'use strict';
 /* =====================================================================
  * JsCore — keadaan aplikasi, sambungan API, utiliti UI, log masuk & sesi
@@ -6,7 +5,7 @@
  * ===================================================================== */
 
 const S = {
-  token: null, user: null, settings: null, view: null, params: {},
+  token: null, idToken: null, user: null, settings: null, view: null, params: {},
   timeoutMin: 30, lastActivity: Date.now(), lastServer: Date.now(), warned: false,
   timers: [], charts: [], unread: 0, boot: null
 };
@@ -41,20 +40,33 @@ function kelasLabel(t, k) { t = String(t || ''); k = String(k || ''); if (!k) re
 function badge(status) { return `<span class="badge st-${esc(status)}">${esc(STATUS_LABEL[status] || status)}</span>`; }
 function tahapBadge(t) { return t ? `<span class="badge tp-${esc(t)}">${esc(t)}</span>` : ''; }
 
-/* ---------- API ---------- */
-function api(fn, ...args) {
-  return new Promise((resolve, reject) => {
-    google.script.run
-      .withSuccessHandler(r => {
-        if (!r || typeof r !== 'object') return reject({ code: 'RALAT', message: 'Tiada respons daripada pelayan.' });
-        if (r.ok) return resolve(r.data);
-        if (S.token && ['SESI_TAMAT', 'AKAUN_TIDAK_AKTIF'].includes(r.error.code)) sessionEnded(r.error.message);
-        reject(r.error);
-      })
-      .withFailureHandler(e => reject({ code: 'RANGKAIAN', message: (e && e.message) || 'Sambungan ke pelayan gagal. Semak internet anda.' }))[fn](...args);
-  });
+/* ---------- API ----------
+ * POST ke Web App Apps Script dengan Content-Type text/plain supaya tiada CORS preflight.
+ * Badan: {"fn": "...", "args": [...]}. Respons: {ok, data} / {ok:false, error}.
+ */
+const CFG = window.EDISIPLIN_CONFIG || {};
+const APP_URL_OK = /^https:\/\/script\.google\.com\/[A-Za-z0-9_.\/-]*\/s\/[A-Za-z0-9_-]+\/exec$/.test(String(CFG.APP_URL || ''));
+const CLIENT_ID_OK = /^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(String(CFG.GOOGLE_CLIENT_ID || ''));
+
+async function api(fn, ...args) {
+  let r;
+  try {
+    const res = await fetch(CFG.APP_URL, {
+      method: 'POST', redirect: 'follow', credentials: 'omit', cache: 'no-store',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ fn, args })
+    });
+    if (!res.ok) throw new Error('Pelayan memberi respons ' + res.status);
+    r = await res.json();
+  } catch (e) {
+    throw { code: 'RANGKAIAN', message: 'Sambungan ke pelayan gagal. Semak internet anda dan cuba lagi.' };
+  }
+  if (!r || typeof r !== 'object') throw { code: 'RALAT', message: 'Tiada respons daripada pelayan.' };
+  if (r.ok) return r.data;
+  if (S.token && ['SESI_TAMAT', 'AKAUN_TIDAK_AKTIF'].includes(r.error.code)) sessionEnded(r.error.message);
+  throw r.error;
 }
-/** Panggilan berpengesahan: token sentiasa dihantar sebagai argumen pertama. */
+/** Panggilan berpengesahan: token sesi sentiasa dihantar sebagai argumen pertama. */
 function callT(fn, payload) { S.lastServer = Date.now(); return api(fn, S.token, payload || {}); }
 
 /* ---------- UI ---------- */
@@ -93,15 +105,63 @@ function downloadText(filename, text, mime) {
  * Boot, log masuk, daftar
  * ===================================================================== */
 async function boot() {
+  $('#boot').classList.add('hidden');
+  if (!APP_URL_OK || !CLIENT_ID_OK) {
+    return renderAuthMessage('Sistem belum dikonfigurasi', 'Pentadbir perlu menetapkan APP_URL (URL Web App Apps Script) dan GOOGLE_CLIENT_ID dalam fail config.js.', 'settings');
+  }
+  renderGoogleSignIn();
+}
+
+/* ---------- Sign in with Google (Google Identity Services) ---------- */
+function waitForGis(ms = 10000) {
+  return new Promise((resolve, reject) => {
+    const end = Date.now() + ms;
+    (function check() {
+      if (window.google && google.accounts && google.accounts.id) return resolve();
+      if (Date.now() > end) return reject(new Error('gis'));
+      setTimeout(check, 100);
+    })();
+  });
+}
+
+async function renderGoogleSignIn(notice) {
+  const reg = INITIAL_VIEW === 'register';
+  showAuth(authCard(reg ? 'Daftar Akaun' : 'Log Masuk', reg ? 'Langkah 1: sahkan akaun Google anda' : 'Gunakan akaun Google anda', `
+    ${notice ? `<div class="mb-4 rounded-xl bg-gold-100 border border-gold-200 p-3 text-sm text-navy-800">${esc(notice)}</div>` : ''}
+    <div id="gsi-btn" class="flex justify-center min-h-[44px]"><div class="h-6 w-6 rounded-full border-[3px] border-royal-200 border-t-royal-600 animate-spin"></div></div>
+    <p class="hint text-center mt-4">Pengesahan identiti dan kata laluan diurus oleh Google. Sistem ini tidak menyimpan kata laluan anda.</p>
+    <div class="mt-5 grid grid-cols-2 gap-2 text-xs">
+      <a href="https://accounts.google.com/signin/recovery" target="_blank" rel="noopener" class="text-royal-600 font-semibold hover:underline">Lupa kata laluan?</a>
+      <a href="${reg ? 'app.html' : 'app.html?view=register'}" class="text-right text-royal-600 font-semibold hover:underline">${reg ? 'Sudah ada akaun? Log masuk' : 'Daftar akaun baharu'}</a>
+    </div>`));
+  try { await waitForGis(); } catch (e) {
+    return renderAuthMessage('Log masuk Google tidak dapat dimuatkan', 'Semak sambungan internet atau pastikan accounts.google.com tidak disekat oleh rangkaian sekolah.', 'wifi-off');
+  }
+  google.accounts.id.initialize({
+    client_id: CFG.GOOGLE_CLIENT_ID, callback: onGoogleCredential,
+    auto_select: false, cancel_on_tap_outside: true, ux_mode: 'popup', context: reg ? 'signup' : 'signin'
+  });
+  const box = $('#gsi-btn');
+  box.innerHTML = '';
+  google.accounts.id.renderButton(box, { theme: 'filled_blue', size: 'large', shape: 'pill', text: reg ? 'signup_with' : 'signin_with', width: 300, locale: 'ms' });
+}
+
+async function onGoogleCredential(resp) {
+  if (!resp || !resp.credential) return;
+  S.idToken = resp.credential;
   try {
-    const info = await api('getBootInfo');
+    const info = await withLoading('Mengesahkan akaun Google…', () => api('getBootInfo', S.idToken));
     S.boot = info;
     renderAuth(info);
   } catch (e) {
-    renderAuthMessage('Sistem tidak dapat dicapai', e.message || 'Sila muat semula halaman.', 'triangle-alert');
-  } finally {
-    $('#boot').classList.add('hidden');
+    renderAuthMessage('Sistem tidak dapat dicapai', e.message || 'Sila cuba lagi.', 'triangle-alert');
   }
+}
+
+function useAnotherAccount() {
+  try { google.accounts.id.disableAutoSelect(); } catch (e) {}
+  S.idToken = null;
+  renderGoogleSignIn();
 }
 
 function authLayout(inner) {
@@ -156,15 +216,15 @@ function renderAuth(info) {
   const st = info.state;
   if (st === 'TIADA_IDENTITI' || st === 'DOMAIN_DITOLAK') {
     return renderAuthMessage('Akaun tidak dikenali', info.message, 'shield-alert',
-      `<p class="mt-4 text-xs text-slate-500">Log keluar dan log masuk semula menggunakan akaun Google rasmi sekolah (contoh akaun DELIMa), kemudian buka pautan sistem ini sekali lagi.</p>`);
+      `<button onclick="useAnotherAccount()" class="btn btn-primary w-full mt-5"><i data-lucide="log-in"></i> Log masuk dengan akaun lain</button>`);
   }
-  if (st === 'TIADA_DB') return renderAuthMessage('Sistem belum disediakan', info.message, 'database');
+  if (st === 'TIADA_DB' || st === 'TIADA_KONFIG') return renderAuthMessage('Sistem belum disediakan', info.message, 'database');
   if (st === 'BELUM_DAFTAR') return renderRegister(info);
   if (st === 'MENUNGGU_KELULUSAN') {
     return showAuth(authCard('Menunggu kelulusan Admin', '', `
       <div class="rounded-xl bg-gold-100 border border-gold-200 p-4 flex gap-3"><i data-lucide="clock" class="h-5 w-5 text-gold-600 shrink-0"></i>
       <p class="text-sm text-navy-800">Pendaftaran untuk <b>${esc(info.email)}</b> telah diterima dan sedang menunggu kelulusan Admin sekolah. Anda boleh log masuk selepas akaun diluluskan.</p></div>
-      <button onclick="location.reload()" class="btn btn-ghost w-full mt-6"><i data-lucide="refresh-cw"></i> Semak status</button>`));
+      <button onclick="useAnotherAccount()" class="btn btn-ghost w-full mt-6"><i data-lucide="refresh-cw"></i> Semak status</button>`));
   }
   if (st === 'DITOLAK' || st === 'NYAHAKTIF') {
     return renderAuthMessage('Akaun tidak aktif', st === 'DITOLAK' ? 'Pendaftaran anda tidak diluluskan. Sila hubungi Admin sekolah.' : 'Akaun anda telah dinyahaktifkan. Sila hubungi Admin sekolah.', 'user-x');
@@ -181,8 +241,8 @@ function renderLogin(info, notice) {
     <p class="hint">Pengesahan identiti dan kata laluan diurus oleh akaun Google sekolah anda. Sistem ini tidak menyimpan kata laluan.</p>
     <button id="btn-login" class="btn btn-primary w-full mt-5 py-3"><i data-lucide="log-in"></i> LOG MASUK</button>
     <div class="mt-5 grid grid-cols-2 gap-2 text-xs">
-      <a href="https://accounts.google.com/signin/v2/recoveryidentifier" target="_blank" rel="noopener" class="text-royal-600 font-semibold hover:underline">Lupa kata laluan?</a>
-      <a href="https://accounts.google.com/AccountChooser" target="_blank" rel="noopener" class="text-right text-royal-600 font-semibold hover:underline">Guna akaun lain</a>
+      <a href="https://accounts.google.com/signin/recovery" target="_blank" rel="noopener" class="text-royal-600 font-semibold hover:underline">Lupa kata laluan?</a>
+      <button type="button" onclick="useAnotherAccount()" class="text-right text-royal-600 font-semibold hover:underline">Guna akaun lain</button>
     </div>`));
   $('#btn-login').addEventListener('click', doLogin);
 }
@@ -191,13 +251,15 @@ async function doLogin() {
   const btn = $('#btn-login');
   btn.disabled = true; btn.innerHTML = '<span class="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin"></span> Mengesahkan…';
   try {
-    const res = await api('startSession');
+    const res = await api('startSession', S.idToken);
+    S.idToken = null; // ID token Google tidak disimpan selepas sesi dicipta
     S.token = res.token; S.user = res.user; S.settings = res.settings; S.timeoutMin = res.timeoutMin;
     $('#auth-root').classList.add('hidden'); $('#auth-root').innerHTML = '';
     startApp();
   } catch (e) {
     btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> LOG MASUK'; icons();
-    if (e.code === 'MENUNGGU_KELULUSAN' || e.code === 'AKAUN_TIDAK_AKTIF' || e.code === 'BELUM_DAFTAR') return boot();
+    if (e.code === 'TIADA_IDENTITI') return renderGoogleSignIn('Log masuk Google telah tamat. Sila log masuk semula.');
+    if (e.code === 'MENUNGGU_KELULUSAN' || e.code === 'AKAUN_TIDAK_AKTIF' || e.code === 'BELUM_DAFTAR') return onGoogleCredential({ credential: S.idToken });
     alertErr(e, 'Log masuk gagal');
   }
 }
@@ -211,12 +273,12 @@ function renderRegister(info) {
         <div class="field"><label class="req">ID Guru</label><input name="idGuru" class="inp uppercase" maxlength="30" required></div>
         <div class="field"><label>No. telefon (pilihan)</label><input name="telefon" class="inp" inputmode="tel" maxlength="20" placeholder="012-3456789"></div>
       </div>
-      <div class="field"><label>E-mel rasmi</label><input class="inp" value="${esc(info.email)}" readonly><p class="hint">Diambil daripada akaun Google yang sedang log masuk.</p></div>
+      <div class="field"><label>E-mel rasmi</label><input class="inp" value="${esc(info.email)}" readonly><p class="hint">Diambil daripada akaun Google yang anda gunakan untuk log masuk.</p></div>
       <div class="field"><label class="req">Nama sekolah</label><input name="sekolah" class="inp" maxlength="150" value="${esc(info.sekolah || '')}" required></div>
       <div class="field"><label class="req">Jawatan</label><select name="jawatan" class="inp" required>${opts}</select>
         <p class="hint">Peranan sebenar dalam sistem akan ditetapkan oleh Admin selepas semakan.</p></div>
       <div class="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 flex gap-2"><i data-lucide="key-round" class="h-4 w-4 shrink-0 text-slate-500"></i>
-        <span>Tiada kata laluan berasingan diperlukan. Anda log masuk menggunakan akaun Google sekolah yang sama.</span></div>
+        <span>Tiada kata laluan berasingan diperlukan. Anda log masuk menggunakan akaun Google yang sama.</span></div>
       <button class="btn btn-primary w-full py-3"><i data-lucide="user-plus"></i> DAFTAR AKAUN</button>
     </form>`));
   $('#reg-form').addEventListener('submit', async ev => {
@@ -226,9 +288,12 @@ function renderRegister(info) {
     if (!f.idGuru || !/^[A-Za-z0-9\-\/]+$/.test(f.idGuru.trim())) return alertErr({ message: 'ID Guru wajib diisi dan hanya mengandungi huruf, nombor, "-" atau "/".' });
     if (f.telefon && !/^\+?[0-9\- ]{8,20}$/.test(f.telefon.trim())) return alertErr({ message: 'Nombor telefon tidak sah.' });
     try {
-      await withLoading('Menghantar pendaftaran…', () => api('registerUser', f));
+      await withLoading('Menghantar pendaftaran…', () => api('registerUser', S.idToken, f));
       renderAuth({ state: 'MENUNGGU_KELULUSAN', email: info.email });
-    } catch (e) { alertErr(e, 'Pendaftaran gagal'); }
+    } catch (e) {
+      if (e.code === 'TIADA_IDENTITI') return renderGoogleSignIn('Log masuk Google telah tamat. Sila sahkan semula dan isi borang sekali lagi.');
+      alertErr(e, 'Pendaftaran gagal');
+    }
   });
 }
 
@@ -325,7 +390,8 @@ function startIdleWatch() {
 function clearState() {
   S.timers.forEach(t => clearInterval(t)); S.timers = [];
   destroyCharts();
-  S.token = null; S.user = null; S.settings = null; S.view = null; S.params = {};
+  S.token = null; S.idToken = null; S.user = null; S.settings = null; S.view = null; S.params = {};
+  try { google.accounts.id.disableAutoSelect(); } catch (e) {}
   if (window.FORM) window.FORM = null;
   $('#main').innerHTML = ''; $('#menu').innerHTML = '';
   $('#sb-name').textContent = ''; $('#sb-role').textContent = ''; $('#sb-school').textContent = '';
@@ -350,7 +416,7 @@ function showLoggedOut(reason) {
   showAuth(authCard('Anda telah log keluar', '', `
     ${reason ? `<div class="mb-4 rounded-xl bg-gold-100 border border-gold-200 p-3 text-sm text-navy-800">${esc(reason)}</div>` : ''}
     <p class="text-sm text-slate-600">Sesi e-DISIPLIN telah ditamatkan dan data sesi telah dikosongkan daripada pelayar ini.</p>
-    <button onclick="boot()" class="btn btn-primary w-full mt-5 py-3"><i data-lucide="log-in"></i> Log masuk semula</button>
+    <button onclick="renderGoogleSignIn()" class="btn btn-primary w-full mt-5 py-3"><i data-lucide="log-in"></i> Log masuk semula</button>
     <a href="https://accounts.google.com/Logout" target="_blank" rel="noopener" class="btn btn-ghost w-full mt-2"><i data-lucide="log-out"></i> Log keluar daripada akaun Google juga</a>
     <p class="hint text-center mt-3">Gunakan pilihan kedua pada komputer awam / dikongsi.</p>`));
 }
@@ -378,4 +444,3 @@ function makeChart(canvasId, config) {
   S.charts.push(new Chart(el, config));
 }
 const intAxis = { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#eef2f7' } };
-</script>

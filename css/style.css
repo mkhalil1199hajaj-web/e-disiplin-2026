@@ -1,5 +1,4 @@
-<style>
-  :root { --navy: #0b1d3a; --royal: #2453c7; --gold: #d4a017; }
+:root { --navy: #0b1d3a; --royal: #2453c7; --gold: #d4a017; }
   html, body { -webkit-tap-highlight-color: transparent; }
   body { overflow-x: hidden; }
 
@@ -91,4 +90,3 @@
   .swal2-styled.swal2-confirm { background: var(--royal) !important; }
 
   @media print { #sidebar, header, footer { display: none !important; } }
-</style>

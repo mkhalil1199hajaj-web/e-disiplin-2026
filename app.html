@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-  <base target="_top">
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+  <title>e-DISIPLIN MURID 2026</title>
+  <meta name="theme-color" content="#0b1d3a">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="robots" content="noindex, nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -26,7 +29,9 @@
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
-  <?!= include_('Styles'); ?>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="config.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans antialiased">
 
@@ -93,7 +98,7 @@
       </header>
       <main id="main" class="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto"></main>
       <footer class="px-6 py-4 text-[11px] text-slate-400 text-center">
-        e-DISIPLIN MURID 2026 · v<?= appVersion ?> · Maklumat dalam sistem ini adalah SULIT
+        e-DISIPLIN MURID 2026 · v1.1.0 · Maklumat dalam sistem ini adalah SULIT
       </footer>
     </div>
   </div>
@@ -106,13 +111,13 @@
   </div>
 
   <script>
-    var INITIAL_VIEW = <?!= JSON.stringify(initialView) ?>;
+    var INITIAL_VIEW = new URLSearchParams(location.search).get('view') === 'register' ? 'register' : 'login';
   </script>
-  <?!= include_('JsCore'); ?>
-  <?!= include_('JsViews'); ?>
-  <?!= include_('JsReport'); ?>
-  <?!= include_('JsAdmin'); ?>
-  <?!= include_('JsPdf'); ?>
+  <script src="js/core.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/pdf.js"></script>
   <script>document.addEventListener('DOMContentLoaded', boot);</script>
 </body>
 </html>

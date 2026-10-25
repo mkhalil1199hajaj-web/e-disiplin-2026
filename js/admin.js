@@ -1,4 +1,3 @@
-<script>
 'use strict';
 /* =====================================================================
  * JsAdmin — pengurusan pengguna dan tetapan sistem
@@ -229,4 +228,3 @@ const SETTINGS_TABS = {
     await load();
   }
 };
-</script>
