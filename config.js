@@ -9,7 +9,7 @@
  * JANGAN letak sebarang kata laluan, client secret, ID spreadsheet atau data murid di sini.
  */
 window.EDISIPLIN_CONFIG = {
-  APP_URL: 'TAMPAL_URL_WEB_APP_DI_SINI',
-  GOOGLE_CLIENT_ID: 'TAMPAL_CLIENT_ID_DI_SINI',
+  APP_URL: 'https://script.google.com/macros/s/AKfycbwa-jty4lrpfED3K9tzkWXBj4WO9Y0yiZshv9XafOdhk340jkGKdsRa56Z0XE1kPIraMw/exec',
+  GOOGLE_CLIENT_ID: '823216331340-qu1rsoita2ut5lqjqus2uk6tlrup1krr.apps.googleusercontent.com',
   NAMA_SEKOLAH: ''
 };
