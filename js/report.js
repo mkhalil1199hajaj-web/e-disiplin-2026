@@ -55,9 +55,10 @@ VIEWS.buat = async (main, params) => {
         <div class="field"><label class="req">Tarikh kejadian</label><input type="date" name="tarikhKejadian" class="inp" max="${todayYmd()}" value="${d ? v('tarikhKejadian') : todayYmd()}"></div>
         <div class="field"><label class="req">Masa kejadian</label><input type="time" name="masaKejadian" class="inp" value="${d ? v('masaKejadian') : nowHm()}"></div>
         <div class="field"><label class="req">Tempat kejadian</label><input name="tempat" list="rf-tempat" class="inp" maxlength="120" value="${v('tempat')}"><datalist id="rf-tempat">${st.tempat.map(t => `<option value="${esc(t)}">`).join('')}</datalist></div>
-        <div class="field"><label class="req">Kategori kesalahan</label>${sel('kategori', st.kategori.map(k => k.nama), d && d.kategori)}</div>
-        <div class="field"><label class="req">Jenis kesalahan</label><select name="jenis" class="inp"></select></div>
         <div class="field"><label class="req">Tahap kesalahan</label>${sel('tahap', st.tahap, d && d.tahap)}</div>
+        <div class="sm:col-span-2 lg:col-span-1 field"><label class="req">Kategori kes</label>${sel('kategori', st.kategori.map(k => k.nama), d && d.kategori)}</div>
+        <div class="sm:col-span-2 field"><label class="req">Perincian kes</label><select name="jenis" class="inp"></select>
+          <p class="hint" id="rf-jenis-hint">Pilih kategori kes dahulu, kemudian perincian kes akan dipaparkan.</p></div>
         <div class="sm:col-span-2 lg:col-span-3 field"><label class="req">Keterangan kejadian</label><textarea name="keterangan" class="inp" maxlength="5000" placeholder="Nyatakan apa yang berlaku secara objektif: siapa, apa, bila, di mana dan bagaimana.">${v('keterangan')}</textarea>
           <p class="hint"><span id="rf-count">0</span>/5000 aksara · minimum 10 aksara</p></div>
         <div class="sm:col-span-2 lg:col-span-3 field"><label>Nama saksi (jika ada)</label><input name="saksi" class="inp" maxlength="300" value="${v('saksi')}"></div>
@@ -90,7 +91,11 @@ VIEWS.buat = async (main, params) => {
   const katSel = F('kategori'), jenisSel = F('jenis');
   const fillJenis = (cur) => {
     const k = st.kategori.find(x => x.nama === katSel.value);
-    jenisSel.innerHTML = '<option value="">— Pilih kategori dahulu —</option>' + (k ? k.jenis.map(j => `<option ${j === cur ? 'selected' : ''}>${esc(j)}</option>`).join('') : '');
+    const list = k ? k.jenis.slice() : [];
+    if (cur && k && list.indexOf(cur) < 0) list.unshift(cur); // draf lama: kekalkan pilihan asal
+    jenisSel.innerHTML = `<option value="">${k ? '— Pilih perincian kes —' : '— Pilih kategori kes dahulu —'}</option>` + list.map(j => `<option ${j === cur ? 'selected' : ''}>${esc(j)}</option>`).join('');
+    jenisSel.disabled = !k;
+    $('#rf-jenis-hint').textContent = k ? `${k.jenis.length} perincian untuk ${k.nama}.` : 'Pilih kategori kes dahulu, kemudian perincian kes akan dipaparkan.';
   };
   fillJenis(d && d.jenis);
   katSel.addEventListener('change', () => fillJenis(''));
@@ -136,7 +141,7 @@ function formPayload() {
 
 function validateClient(f) {
   const errs = [];
-  const req = { namaMurid: 'Nama murid', studentId: 'ID Murid', tingkatan: 'Tingkatan', kelas: 'Kelas', sesi: 'Sesi', tarikhKejadian: 'Tarikh kejadian', masaKejadian: 'Masa kejadian', tempat: 'Tempat kejadian', kategori: 'Kategori kesalahan', jenis: 'Jenis kesalahan', tahap: 'Tahap kesalahan', keterangan: 'Keterangan kejadian' };
+  const req = { namaMurid: 'Nama murid', studentId: 'ID Murid', tingkatan: 'Tingkatan', kelas: 'Kelas', sesi: 'Sesi', tarikhKejadian: 'Tarikh kejadian', masaKejadian: 'Masa kejadian', tempat: 'Tempat kejadian', kategori: 'Kategori kes', jenis: 'Perincian kes', tahap: 'Tahap kesalahan', keterangan: 'Keterangan kejadian' };
   $$('#rf .inp').forEach(i => i.classList.remove('invalid'));
   Object.entries(req).forEach(([k, label]) => { if (!f[k]) { errs.push(label + ' wajib diisi.'); const el = $(`#rf [name="${k}"]`); if (el) el.classList.add('invalid'); } });
   if (f.studentId && !/^[A-Za-z0-9\-\/]+$/.test(f.studentId)) errs.push('ID Murid hanya boleh mengandungi huruf, nombor, "-" atau "/".');
@@ -180,7 +185,7 @@ function previewUi() {
     html: `<div class="text-left"><p class="text-xs font-bold text-royal-700 mb-2">${esc(window.FORM.reportId || 'ID akan dijana')}</p><table class="w-full">
       ${row('Guru pelapor', S.user.nama)}${row('Nama murid', f.namaMurid)}${row('ID murid', f.studentId)}${row('Tingkatan / kelas', [f.tingkatan, f.kelas].filter(Boolean).join(' / '))}
       ${row('Jantina', f.jantina)}${row('Sesi', f.sesi)}${row('Tarikh & masa', fmtDate(f.tarikhKejadian) + ' ' + f.masaKejadian)}${row('Tempat', f.tempat)}
-      ${row('Kategori', f.kategori)}${row('Jenis', f.jenis)}${row('Tahap', f.tahap)}${row('Keterangan', f.keterangan)}${row('Saksi', f.saksi)}${row('Catatan', f.catatan)}
+      ${row('Kategori kes', f.kategori)}${row('Perincian kes', f.jenis)}${row('Tahap', f.tahap)}${row('Keterangan', f.keterangan)}${row('Saksi', f.saksi)}${row('Catatan', f.catatan)}
       ${row('Lampiran', window.FORM.attachments.map(a => a.nama).join(', '))}</table></div>`
   });
 }

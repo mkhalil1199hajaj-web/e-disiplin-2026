@@ -66,7 +66,7 @@ VIEWS.tetapan = async (main, params) => {
   const admin = hasRole('ADMIN');
   setTitle('Tetapan', admin ? 'Konfigurasi sekolah dan sistem' : 'Profil pengguna');
   const tabs = admin
-    ? [['sekolah', 'Sekolah'], ['kategori', 'Kategori kesalahan'], ['senarai', 'Senarai pilihan'], ['murid', 'Data murid'], ['sandaran', 'Sandaran & eksport'], ['audit', 'Audit log'], ['profil', 'Profil saya']]
+    ? [['sekolah', 'Sekolah'], ['kategori', 'Kategori & perincian kes'], ['senarai', 'Senarai pilihan'], ['murid', 'Data murid'], ['sandaran', 'Sandaran & eksport'], ['audit', 'Audit log'], ['profil', 'Profil saya']]
     : [['profil', 'Profil saya']];
   const tab = tabs.some(t => t[0] === params.tab) ? params.tab : tabs[0][0];
   main.innerHTML = `<div class="card">${tabs.length > 1 ? `<div class="tabs px-4">${tabs.map(t => `<button class="tab ${t[0] === tab ? 'active' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>` : ''}<div class="card-b" id="tt-body"></div></div>`;
@@ -138,7 +138,7 @@ const SETTINGS_TABS = {
   async kategori(body) {
     const text = S.settings.kategori.map(k => `${k.nama} | ${k.jenis.join('; ')}`).join('\n');
     body.innerHTML = `<div class="max-w-3xl space-y-3">
-      <p class="text-sm text-slate-600">Satu kategori setiap baris. Format: <code class="bg-slate-100 px-1.5 py-0.5 rounded">Nama kategori | jenis 1; jenis 2; jenis 3</code>. Masukkan "Lain-lain" dalam senarai jenis jika guru boleh memilih jenis lain.</p>
+      <p class="text-sm text-slate-600">Satu kategori setiap baris. Format: <code class="bg-slate-100 px-1.5 py-0.5 rounded">Kategori kes | perincian 1; perincian 2; perincian 3</code>. Masukkan "LAIN-LAIN" dalam senarai perincian jika guru boleh memilih perincian lain. Maksimum 50 kategori dan 60 perincian setiap kategori.</p>
       <div class="rounded-xl bg-gold-100 border border-gold-200 p-3 text-xs text-navy-800">Pastikan kategori selaras dengan peraturan sekolah dan garis panduan pengurusan disiplin KPM yang berkuat kuasa. Laporan lama mengekalkan kategori asalnya.</div>
       <textarea id="kt" class="inp font-mono text-xs" style="min-height:340px">${esc(text)}</textarea>
       <button class="btn btn-primary" id="kt-save"><i data-lucide="save"></i> Simpan kategori</button></div>`;
@@ -147,7 +147,7 @@ const SETTINGS_TABS = {
         const [nama, jenis] = l.split('|');
         return { nama: (nama || '').trim(), jenis: String(jenis || '').split(';').map(s => s.trim()).filter(Boolean) };
       });
-      saveSettings({ kategori }, 'Kategori kesalahan disimpan');
+      saveSettings({ kategori }, 'Kategori dan perincian kes disimpan');
     };
   },
 

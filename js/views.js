@@ -167,7 +167,7 @@ function filterBar(prefix, f = {}) {
     <select name="status" class="inp"><option value="">Semua status</option>${opt(['DRAF', ...STATUS_ORDER].map(s => [s, STATUS_LABEL[s]]), f.status)}</select>
     <select name="tingkatan" class="inp"><option value="">Semua tingkatan</option>${opt(st.tingkatan.map(t => [t, /^\d$/.test(t) ? 'Tingkatan ' + t : t]), f.tingkatan)}</select>
     <input name="kelas" class="inp" placeholder="Kelas" value="${esc(f.kelas || '')}">
-    <select name="kategori" class="inp"><option value="">Semua kategori</option>${opt(st.kategori.map(k => [k.nama, k.nama]), f.kategori)}</select>
+    <select name="kategori" class="inp"><option value="">Semua kategori kes</option>${opt(st.kategori.map(k => [k.nama, k.nama]), f.kategori)}</select>
     <input type="date" name="dari" class="inp" title="Dari tarikh" value="${esc(f.dari || '')}">
     <input type="date" name="hingga" class="inp" title="Hingga tarikh" value="${esc(f.hingga || '')}">
   </form>`;
@@ -240,7 +240,7 @@ function renderDetail(main, d) {
           <div><p class="section-title mb-3"><span class="num">B</span> Maklumat murid</p>${kv([['Nama murid', `<b>${esc(d.namaMurid)}</b>`], ['ID Murid', esc(d.studentId)], ['Tingkatan / Kelas', esc([d.tingkatan, d.kelas].filter(Boolean).join(' / '))], ['Jantina', esc(d.jantina)], ['Sesi', esc(d.sesi)]])}</div>
         </div>
         <div class="card-b border-t border-slate-100"><p class="section-title mb-3"><span class="num">C</span> Maklumat kes</p>
-          ${kv([['Tarikh & masa kejadian', `${fmtDate(d.tarikhKejadian)} ${esc(d.masaKejadian)}`], ['Tempat', esc(d.tempat)], ['Kategori', esc(d.kategori)], ['Jenis kesalahan', esc(d.jenis)], ['Tahap', tahapBadge(d.tahap)], ['Keterangan', txt(d.keterangan)], ['Saksi', txt(d.saksi)], ['Catatan tambahan', txt(d.catatan)]])}</div>
+          ${kv([['Tarikh & masa kejadian', `${fmtDate(d.tarikhKejadian)} ${esc(d.masaKejadian)}`], ['Tempat', esc(d.tempat)], ['Kategori kes', esc(d.kategori)], ['Perincian kes', esc(d.jenis)], ['Tahap', tahapBadge(d.tahap)], ['Keterangan', txt(d.keterangan)], ['Saksi', txt(d.saksi)], ['Catatan tambahan', txt(d.catatan)]])}</div>
         <div class="card-b border-t border-slate-100"><p class="section-title mb-3"><span class="num">D</span> Lampiran bukti</p>
           ${d.attachments.length ? `<div class="grid sm:grid-cols-2 gap-2">${d.attachments.map(a => `<button class="att-view flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-left hover:bg-slate-50" data-att="${esc(a.attachmentId)}">
             <i data-lucide="${a.jenis === 'application/pdf' ? 'file-text' : 'image'}" class="h-5 w-5 text-royal-600"></i><span class="min-w-0 flex-1"><span class="block text-sm font-semibold truncate">${esc(a.nama)}</span><span class="text-xs text-slate-500">${fmtBytes(a.saiz)}</span></span><i data-lucide="eye" class="h-4 w-4 text-slate-400"></i></button>`).join('')}</div>` : '<p class="text-sm text-slate-500">Tiada lampiran.</p>'}</div>
