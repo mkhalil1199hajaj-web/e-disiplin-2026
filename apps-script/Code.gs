@@ -46,7 +46,7 @@ function apiMap_() {
     listUsers: listUsers, approveUser: approveUser, rejectUser: rejectUser, updateUserRole: updateUserRole, setUserStatus: setUserStatus,
     createReport: createReport, saveDraft: saveDraft, updateReport: updateReport, submitReport: submitReport, deleteDraft: deleteDraft,
     getMyReports: getMyReports, getAllReports: getAllReports, getReportById: getReportById, updateReportStatus: updateReportStatus,
-    setHandler: setHandler, addDisciplineAction: addDisciplineAction, addApproval: addApproval,
+    setHandler: setHandler, setReportTahap: setReportTahap, addDisciplineAction: addDisciplineAction, addApproval: addApproval,
     uploadEvidence: uploadEvidence, deleteAttachment: deleteAttachment, getAttachment: getAttachment,
     getNotifications: getNotifications, markNotificationRead: markNotificationRead,
     getDashboardStats: getDashboardStats, getSummaryReport: getSummaryReport, getReportForPdf: getReportForPdf,

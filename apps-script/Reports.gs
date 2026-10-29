@@ -36,6 +36,7 @@ var EDITABLE_STATUS = [STATUS.DRAF, STATUS.DIPULANGKAN];
 var ACTION_ROLES = ['ADMIN', 'GURU_DISIPLIN'];
 var APPROVAL_ROLES = ['GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'];
 var HANDLER_ROLES = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM'];
+var TAHAP_ROLES = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'];
 
 /* ------------------------------------------------------------------ */
 /* Medan borang & pengesahan                                           */
@@ -59,10 +60,15 @@ var REPORT_FIELDS = [
   ['catatan', 'CatatanTambahan', { label: 'Catatan tambahan', max: 2000 }]
 ];
 
-function parseReport_(p, strict) {
+/**
+ * canTahap = false (Guru Biasa): medan Tahap kesalahan diabaikan sepenuhnya.
+ * Tahap ditetapkan kemudian oleh Guru Disiplin / PK HEM / Pengetua / Admin (setReportTahap).
+ */
+function parseReport_(p, strict, canTahap) {
   var out = {};
   REPORT_FIELDS.forEach(function (f) {
     var o = f[2];
+    if (f[0] === 'tahap' && !canTahap) return;
     out[f[1]] = o.date
       ? vDate_(p[f[0]], o.label, strict && o.req)
       : vStr_(p[f[0]], o.label, { required: strict && o.req, max: o.max, min: o.min, pattern: o.pattern, oneOf: o.oneOf });
@@ -204,6 +210,7 @@ function verification_(r) {
 function reportDetail_(ctx, r) {
   var priv = isPriv_(ctx);
   var d = fullRow_(r);
+  if (!priv) d.tahap = ''; // Guru Biasa tidak melihat tahap kesalahan
   d.actions = all_('ACTIONS').filter(function (a) { return a.ReportID === r.ReportID; })
     .sort(function (a, b) { return cmp_(a.CreatedAt, b.CreatedAt); })
     .map(function (a) {
@@ -241,6 +248,7 @@ function reportDetail_(ctx, r) {
     canAddAction: ACTION_ROLES.indexOf(ctx.role) >= 0 && (r.Status === STATUS.SEMAKAN || r.Status === STATUS.TINDAKAN),
     canApprove: APPROVAL_ROLES.indexOf(ctx.role) >= 0 && activeStatus.indexOf(r.Status) >= 0,
     canReturnViaApproval: ['GURU_DISIPLIN', 'PK_HEM'].indexOf(ctx.role) >= 0 && (r.Status === STATUS.DIHANTAR || r.Status === STATUS.SEMAKAN),
+    canSetTahap: TAHAP_ROLES.indexOf(ctx.role) >= 0 && r.Status !== STATUS.DRAF && r.Status !== STATUS.SELESAI,
     canSetHandler: HANDLER_ROLES.indexOf(ctx.role) >= 0 && r.Status !== STATUS.SELESAI && r.Status !== STATUS.DRAF && r.Status !== STATUS.DIPULANGKAN,
     isOwner: r.ReporterID === ctx.userId
   };
@@ -287,7 +295,7 @@ function createReport(token, payload) {
 }
 
 function createReport_(ctx, p) {
-  var data = parseReport_(p, false);
+  var data = parseReport_(p, false, isPriv_(ctx));
   return withLock_(function () {
     data.ReportID = nextReportId_();
     data.ReporterID = ctx.userId;
@@ -322,7 +330,7 @@ function updateReport_(ctx, p) {
     var r = getReportRow_(p.reportId);
     requireView_(ctx, r);
     if (!canEdit_(ctx, r)) throw AppError_('TIADA_KEBENARAN', 'Laporan ini tidak boleh dikemas kini pada status semasa.');
-    var data = parseReport_(p, false);
+    var data = parseReport_(p, false, isPriv_(ctx));
     data.UpdatedAt = nowIso_();
     update_('REPORTS', r._row, data);
     writeAuditLog_(ctx, 'KEMASKINI_LAPORAN', r.ReportID, 'BERJAYA', '');
@@ -339,7 +347,7 @@ function submitReport(token, payload) {
       var r = getReportRow_(id);
       requireView_(ctx, r);
       if (!canEdit_(ctx, r)) throw AppError_('TIADA_KEBENARAN', 'Laporan ini telah dihantar dan tidak boleh dihantar semula.');
-      var data = parseReport_(p, true);
+      var data = parseReport_(p, true, isPriv_(ctx));
       var from = r.Status;
       data.Status = STATUS.DIHANTAR;
       data.SubmittedAt = nowIso_();
@@ -355,7 +363,7 @@ function submitReport(token, payload) {
       if (r.HandlerID) recipients.push(r.HandlerID);
       notify_(recipients.filter(function (x) { return x !== ctx.userId; }), r.ReportID,
         (from === STATUS.DIPULANGKAN ? 'Laporan dihantar semula: ' : 'Laporan baharu: ') + r.ReportID + ' — ' + data.NamaMurid +
-        ' (' + data.KategoriKesalahan + ', ' + data.TahapKesalahan + ')');
+        ' (' + data.KategoriKesalahan + (data.TahapKesalahan ? ', ' + data.TahapKesalahan : '') + ')');
       writeAuditLog_(ctx, 'HANTAR_LAPORAN', r.ReportID, 'BERJAYA', from + ' -> DIHANTAR');
       return { reportId: r.ReportID, status: STATUS.DIHANTAR };
     });
@@ -380,7 +388,8 @@ function deleteDraft(token, payload) {
 function getMyReports(token, filters) {
   return secured_(token, null, function (ctx) {
     var rows = all_('REPORTS').filter(function (r) { return r.ReporterID === ctx.userId && r.IsDeleted !== 'Y'; });
-    return applyFilters_(rows, filters).slice(0, 500).map(function (r) { var s = summaryRow_(r); s.mine = true; return s; });
+    var priv = isPriv_(ctx);
+    return applyFilters_(rows, filters).slice(0, 500).map(function (r) { var s = summaryRow_(r); s.mine = true; if (!priv) s.tahap = ''; return s; });
   });
 }
 
@@ -439,6 +448,31 @@ function setHandler(token, payload) {
       update_('REPORTS', r._row, { HandlerID: h.UserID, NamaHandler: h.NamaPenuh, UpdatedAt: nowIso_() });
       if (h.UserID !== ctx.userId) notify_([h.UserID], r.ReportID, 'Anda ditugaskan mengendalikan kes ' + r.ReportID + ' (' + r.NamaMurid + ').');
       writeAuditLog_(ctx, 'TETAP_PENGENDALI', r.ReportID, 'BERJAYA', h.Email);
+      return reportDetail_(ctx, getReportRow_(r.ReportID));
+    });
+  });
+}
+
+/** Tetapkan / tukar tahap kesalahan. Admin, Guru Disiplin, PK HEM, Pengetua sahaja. */
+function setReportTahap(token, payload) {
+  return secured_(token, TAHAP_ROLES, function (ctx) {
+    var p = obj_(payload);
+    var tahap = vStr_(p.tahap, 'Tahap kesalahan', { required: true, oneOf: TAHAP_LIST });
+    return withLock_(function () {
+      var r = getReportRow_(p.reportId);
+      requireView_(ctx, r);
+      if (r.Status === STATUS.DRAF || r.Status === STATUS.SELESAI) {
+        throw AppError_('STATUS_TIDAK_SAH', 'Tahap kesalahan tidak boleh ditukar pada status ' + (STATUS_LABEL[r.Status] || r.Status) + '.');
+      }
+      var lama = r.TahapKesalahan || '';
+      if (lama === tahap) return reportDetail_(ctx, r);
+      update_('REPORTS', r._row, { TahapKesalahan: tahap, UpdatedAt: nowIso_() });
+      if (tahap === 'Berat') {
+        var to = activeUsersByRole_([ROLES.PKHEM, ROLES.PENGETUA]).map(function (u) { return u.UserID; })
+          .filter(function (x) { return x !== ctx.userId; });
+        notify_(to, r.ReportID, 'Kes tahap Berat: ' + r.ReportID + ' — ' + r.NamaMurid + ' (' + r.KategoriKesalahan + ')');
+      }
+      writeAuditLog_(ctx, 'TETAP_TAHAP', r.ReportID, 'BERJAYA', (lama || '-') + ' -> ' + tahap);
       return reportDetail_(ctx, getReportRow_(r.ReportID));
     });
   });

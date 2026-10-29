@@ -233,14 +233,14 @@ function renderDetail(main, d) {
      <div><b>Laporan dipulangkan untuk pembetulan.</b><p class="mt-1">${txt((d.history.filter(h => h.ke === 'DIPULANGKAN').pop() || {}).ulasan || '')}</p></div></div>` : ''}
   <div class="grid xl:grid-cols-3 gap-5">
     <div class="xl:col-span-2 space-y-5">
-      <div class="card"><div class="card-h"><div class="flex items-center gap-3 flex-wrap"><h3>${esc(d.reportId)}</h3>${badge(d.status)}${tahapBadge(d.tahap)}</div>
+      <div class="card"><div class="card-h"><div class="flex items-center gap-3 flex-wrap"><h3>${esc(d.reportId)}</h3>${badge(d.status)}${isPriv() ? (d.tahap ? tahapBadge(d.tahap) : '<span class="badge bg-slate-100 text-slate-600">Tahap belum ditetapkan</span>') : ''}</div>
         <span class="text-xs text-slate-500">Dikemas kini ${fmtDateTime(d.updatedAt)}</span></div>
         <div class="card-b grid md:grid-cols-2 gap-x-8">
           <div><p class="section-title mb-3"><span class="num">A</span> Maklumat laporan</p>${kv([['Tarikh laporan', fmtDate(d.createdAt)], ['Masa laporan', esc(String(d.createdAt).slice(11, 16))], ['Guru pelapor', esc(d.namaPelapor)], ['ID Guru', esc(d.idGuruPelapor)], ['Dihantar', d.submittedAt ? fmtDateTime(d.submittedAt) : ''], ['Pegawai kendali', esc(d.namaHandler)]])}</div>
           <div><p class="section-title mb-3"><span class="num">B</span> Maklumat murid</p>${kv([['Nama murid', `<b>${esc(d.namaMurid)}</b>`], ['ID Murid', esc(d.studentId)], ['Tingkatan / Kelas', esc([d.tingkatan, d.kelas].filter(Boolean).join(' / '))], ['Jantina', esc(d.jantina)], ['Sesi', esc(d.sesi)]])}</div>
         </div>
         <div class="card-b border-t border-slate-100"><p class="section-title mb-3"><span class="num">C</span> Maklumat kes</p>
-          ${kv([['Tarikh & masa kejadian', `${fmtDate(d.tarikhKejadian)} ${esc(d.masaKejadian)}`], ['Tempat', esc(d.tempat)], ['Kategori kes', esc(d.kategori)], ['Perincian kes', esc(d.jenis)], ['Tahap', tahapBadge(d.tahap)], ['Keterangan', txt(d.keterangan)], ['Saksi', txt(d.saksi)], ['Catatan tambahan', txt(d.catatan)]])}</div>
+          ${kv([['Tarikh & masa kejadian', `${fmtDate(d.tarikhKejadian)} ${esc(d.masaKejadian)}`], ['Tempat', esc(d.tempat)], ['Kategori kes', esc(d.kategori)], ['Perincian kes', esc(d.jenis)], ...(isPriv() ? [['Tahap', d.tahap ? tahapBadge(d.tahap) : '<span class="text-slate-500">Belum ditetapkan</span>']] : []), ['Keterangan', txt(d.keterangan)], ['Saksi', txt(d.saksi)], ['Catatan tambahan', txt(d.catatan)]])}</div>
         <div class="card-b border-t border-slate-100"><p class="section-title mb-3"><span class="num">D</span> Lampiran bukti</p>
           ${d.attachments.length ? `<div class="grid sm:grid-cols-2 gap-2">${d.attachments.map(a => `<button class="att-view flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-left hover:bg-slate-50" data-att="${esc(a.attachmentId)}">
             <i data-lucide="${a.jenis === 'application/pdf' ? 'file-text' : 'image'}" class="h-5 w-5 text-royal-600"></i><span class="min-w-0 flex-1"><span class="block text-sm font-semibold truncate">${esc(a.nama)}</span><span class="text-xs text-slate-500">${fmtBytes(a.saiz)}</span></span><i data-lucide="eye" class="h-4 w-4 text-slate-400"></i></button>`).join('')}</div>` : '<p class="text-sm text-slate-500">Tiada lampiran.</p>'}</div>
@@ -288,6 +288,9 @@ function buildActionPanel(d) {
   if (p.transitions.length) {
     parts.push(`<div><p class="lbl">Kemas kini status</p><div class="grid gap-2">${p.transitions.map(t => `<button class="btn ${tColor[t.to] || 'btn-ghost'} w-full a-trans" data-to="${t.to}" data-need="${t.needUlasan ? 1 : 0}">${esc(tLabel(t))}</button>`).join('')}</div></div>`);
   }
+  if (p.canSetTahap) {
+    parts.push(`<div><p class="lbl">Tahap kesalahan</p><div class="flex gap-2"><select id="a-tahap" class="inp"><option value="">— Pilih tahap —</option>${S.settings.tahap.map(t => `<option ${t === d.tahap ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select><button class="btn btn-ghost" id="a-settahap">Simpan</button></div>${d.tahap ? '' : '<p class="hint mt-1">Tahap belum ditetapkan. Sila tetapkan selepas menyemak laporan.</p>'}</div>`);
+  }
   if (p.canSetHandler && d.handlers) {
     parts.push(`<div><p class="lbl">Guru disiplin yang mengendalikan</p><div class="flex gap-2"><select id="a-handler" class="inp"><option value="">— Pilih —</option>${d.handlers.map(h => `<option value="${esc(h.userId)}" ${h.userId === d.handlerId ? 'selected' : ''}>${esc(h.nama)}</option>`).join('')}</select><button class="btn btn-ghost" id="a-sethandler">Simpan</button></div></div>`);
   }
@@ -315,6 +318,11 @@ function buildActionPanel(d) {
     if (!r.isConfirmed) return;
     try { const nd = await withLoading('Mengemas kini status…', () => callT('updateReportStatus', { reportId: d.reportId, toStatus: to, ulasan: r.value || '' })); toast('Status dikemas kini'); refresh(nd); } catch (e) { alertErr(e); }
   });
+  const stp = $('#a-settahap');
+  if (stp) stp.onclick = async () => {
+    const t = $('#a-tahap').value; if (!t) return;
+    try { const nd = await withLoading('Menyimpan…', () => callT('setReportTahap', { reportId: d.reportId, tahap: t })); toast('Tahap kesalahan dikemas kini'); refresh(nd); } catch (e) { alertErr(e); }
+  };
   const sh = $('#a-sethandler');
   if (sh) sh.onclick = async () => {
     const id = $('#a-handler').value; if (!id) return;

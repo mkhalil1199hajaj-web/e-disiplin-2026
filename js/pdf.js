@@ -85,7 +85,7 @@ async function generateReportPdf(reportId, mode) {
   y = sectionTitle(doc, y, '2. MAKLUMAT MURID');
   y = kvTable(doc, y, [['Nama murid', r.namaMurid], ['ID Murid / No. pendaftaran', r.studentId], ['Tingkatan', r.tingkatan], ['Kelas', r.kelas], ['Jantina', r.jantina], ['Sesi persekolahan', r.sesi]]);
   y = sectionTitle(doc, y, '3. BUTIRAN KEJADIAN');
-  y = kvTable(doc, y, [['Tarikh kejadian', fmtDate(r.tarikhKejadian)], ['Masa kejadian', r.masaKejadian], ['Tempat kejadian', r.tempat], ['Kategori kes', r.kategori], ['Perincian kes', r.jenis], ['Tahap kesalahan', r.tahap], ['Nama saksi', r.saksi]]);
+  y = kvTable(doc, y, [['Tarikh kejadian', fmtDate(r.tarikhKejadian)], ['Masa kejadian', r.masaKejadian], ['Tempat kejadian', r.tempat], ['Kategori kes', r.kategori], ['Perincian kes', r.jenis], ...(isPriv() ? [['Tahap kesalahan', r.tahap || 'Belum ditetapkan']] : []), ['Nama saksi', r.saksi]]);
   y = sectionTitle(doc, y, '4. KETERANGAN KES');
   y = kvTable(doc, y, [['Keterangan kejadian', r.keterangan], ['Catatan tambahan', r.catatan]]);
 

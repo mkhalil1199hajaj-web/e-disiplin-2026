@@ -57,7 +57,7 @@ function getDashboardStats(token, payload) {
       selesai: mine.filter(function (r) { return r.Status === STATUS.SELESAI; }).length
     };
     var myRecent = mine.sort(function (a, b) { return cmp_((b.UpdatedAt || ''), (a.UpdatedAt || '')); })
-      .slice(0, 8).map(function (r) { var s = summaryRow_(r); s.mine = true; return s; });
+      .slice(0, 8).map(function (r) { var s = summaryRow_(r); s.mine = true; if (!isPriv_(ctx)) s.tahap = ''; return s; });
 
     if (!isPriv_(ctx)) {
       return { scope: 'SENDIRI', role: ctx.role, year: year, mine: myCards, recent: myRecent };
