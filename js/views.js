@@ -105,7 +105,7 @@ VIEWS.dashboard = async (main) => {
       <div class="card"><div class="card-h"><h3>Graf trend kesalahan</h3></div><div class="card-b"><div class="chart-box"><canvas id="c-trend"></canvas></div></div></div></div>
       <div class="card mt-5"><div class="card-h"><h3>Kes yang memerlukan semakan</h3></div><div class="card-b pt-1" id="p-review">${reportTable(d.needReview, { emptyTitle: 'Tiada kes menunggu semakan' })}</div></div>`;
     charts.push(() => monthChart('c-bulan', s, d.year, false), () => tingChart('c-ting', s), () => statusChart('c-status', s), () => trendChart('c-trend', s));
-  } else if (role === 'PENGETUA') {
+  } else if (role === 'PENGETUA' || PK_LAIN.includes(role)) {
     const pct = s.total ? Math.round(s.selesai / s.total * 100) : 0;
     cards = statCard('Jumlah kes keseluruhan', s.total, 'files', 'navy', s.yearTotal + ' kes pada ' + d.year)
       + statCard('Kes selesai', s.selesai, 'circle-check', 'green', pct + '% daripada semua kes')
@@ -123,7 +123,7 @@ VIEWS.dashboard = async (main) => {
       <div class="card mt-5"><div class="card-h"><h3 class="flex items-center gap-2"><i data-lucide="triangle-alert" class="h-4 w-4 text-red-600"></i> Kes serius</h3></div><div class="card-b pt-1" id="p-serious">${reportTable(d.serious, { emptyTitle: 'Tiada kes serius terbuka' })}</div></div>`;
     charts.push(() => monthChart('c-bulan', s, d.year, true), () => katChart('c-kat', s.byKategori, 'doughnut'));
   }
-  main.innerHTML = `<div class="grid grid-cols-2 ${role === 'PK_HEM' || role === 'PENGETUA' ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-3 sm:gap-4">${cards}</div>${panels}`;
+  main.innerHTML = `<div class="grid grid-cols-2 ${role === 'PK_HEM' || role === 'PENGETUA' || PK_LAIN.includes(role) ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-3 sm:gap-4">${cards}</div>${panels}`;
   bindRows(main);
   charts.forEach(fn => fn());
 };

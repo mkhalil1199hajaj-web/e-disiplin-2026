@@ -15,11 +15,18 @@
 var APP = { NAME: 'e-DISIPLIN MURID 2026', VERSION: '1.1.0', TZ: 'Asia/Kuala_Lumpur' };
 
 var ROLES = { ADMIN: 'ADMIN', GD: 'GURU_DISIPLIN', PKHEM: 'PK_HEM', PENGETUA: 'PENGETUA', GURU: 'GURU_BIASA' };
-var ROLE_LIST = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA', 'GURU_BIASA'];
-var ROLE_LABEL = { ADMIN: 'Admin', GURU_DISIPLIN: 'Guru Disiplin', PK_HEM: 'PK HEM', PENGETUA: 'Pengetua', GURU_BIASA: 'Guru Biasa' };
+/** PK lain: akses pengurusan (pantau semua laporan, tetapkan tahap, sahkan, tutup/buka semula kes) seperti Pengetua. */
+var PK_LAIN = ['PK_PENTADBIRAN', 'PK_KOKURIKULUM', 'PK_PETANG'];
+/** GKMP: akses sama seperti Guru Biasa (buat laporan, lihat laporan sendiri). */
+var GKMP_ROLES = ['GKMP_BAHASA', 'GKMP_TVET', 'GKMP_SAINS_MATEMATIK', 'GKMP_KEMANUSIAAN'];
+var ROLE_LIST = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA', 'GURU_BIASA'].concat(PK_LAIN, GKMP_ROLES);
+var ROLE_LABEL = { ADMIN: 'Admin', GURU_DISIPLIN: 'Guru Disiplin', PK_HEM: 'PK HEM', PENGETUA: 'Pengetua', GURU_BIASA: 'Guru Biasa',
+  PK_PENTADBIRAN: 'PK Pentadbiran', PK_KOKURIKULUM: 'PK Kokurikulum', PK_PETANG: 'PK Petang',
+  GKMP_BAHASA: 'GKMP Bahasa', GKMP_TVET: 'GKMP TVET', GKMP_SAINS_MATEMATIK: 'GKMP Sains dan Matematik', GKMP_KEMANUSIAAN: 'GKMP Kemanusiaan' };
 /** Peranan yang boleh melihat laporan seluruh sekolah. */
-var PRIV_ROLES = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'];
-var JAWATAN_LIST = ['Guru Biasa', 'Guru Disiplin', 'PK HEM', 'Pengetua'];
+var PRIV_ROLES = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'].concat(PK_LAIN);
+var JAWATAN_LIST = ['Guru Biasa', 'Guru Disiplin', 'PK HEM', 'Pengetua', 'PK Pentadbiran', 'PK Kokurikulum', 'PK Petang',
+  'GKMP Bahasa', 'GKMP TVET', 'GKMP Sains dan Matematik', 'GKMP Kemanusiaan'];
 
 var STATUS = {
   DRAF: 'DRAF', DIHANTAR: 'DIHANTAR', SEMAKAN: 'DALAM_SEMAKAN',

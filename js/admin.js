@@ -3,8 +3,8 @@
  * JsAdmin — pengurusan pengguna dan tetapan sistem
  * ===================================================================== */
 
-const JAWATAN_TO_ROLE = { 'Guru Biasa': 'GURU_BIASA', 'Guru Disiplin': 'GURU_DISIPLIN', 'PK HEM': 'PK_HEM', 'Pengetua': 'PENGETUA' };
-const ROLE_OPTIONS = ['GURU_BIASA', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA', 'ADMIN'];
+const JAWATAN_TO_ROLE = Object.fromEntries(Object.entries(ROLE_LABEL).map(([k, v]) => [v, k]));
+const ROLE_OPTIONS = ['GURU_BIASA', 'GKMP_BAHASA', 'GKMP_TVET', 'GKMP_SAINS_MATEMATIK', 'GKMP_KEMANUSIAAN', 'GURU_DISIPLIN', 'PK_HEM', 'PK_PENTADBIRAN', 'PK_KOKURIKULUM', 'PK_PETANG', 'PENGETUA', 'ADMIN'];
 const ACC_LABEL = { MENUNGGU_KELULUSAN: 'Menunggu kelulusan', AKTIF: 'Aktif', NYAHAKTIF: 'Nyahaktif', DITOLAK: 'Ditolak' };
 const ACC_STYLE = { MENUNGGU_KELULUSAN: 'st-DALAM_SEMAKAN', AKTIF: 'st-SELESAI', NYAHAKTIF: 'st-DRAF', DITOLAK: 'st-DIPULANGKAN' };
 

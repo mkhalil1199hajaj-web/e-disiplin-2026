@@ -19,11 +19,11 @@ var TRANSITIONS = {
     DIPULANGKAN: ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM']
   },
   DALAM_TINDAKAN: {
-    SELESAI: ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'],
-    DALAM_SEMAKAN: ['ADMIN', 'PK_HEM', 'PENGETUA']
+    SELESAI: ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'].concat(PK_LAIN),
+    DALAM_SEMAKAN: ['ADMIN', 'PK_HEM', 'PENGETUA'].concat(PK_LAIN)
   },
   SELESAI: {
-    DALAM_TINDAKAN: ['ADMIN', 'PK_HEM', 'PENGETUA'] // buka semula kes
+    DALAM_TINDAKAN: ['ADMIN', 'PK_HEM', 'PENGETUA'].concat(PK_LAIN) // buka semula kes
   }
 };
 
@@ -34,9 +34,9 @@ function needsUlasan_(from, to) {
 
 var EDITABLE_STATUS = [STATUS.DRAF, STATUS.DIPULANGKAN];
 var ACTION_ROLES = ['ADMIN', 'GURU_DISIPLIN'];
-var APPROVAL_ROLES = ['GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'];
+var APPROVAL_ROLES = ['GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'].concat(PK_LAIN);
 var HANDLER_ROLES = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM'];
-var TAHAP_ROLES = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'];
+var TAHAP_ROLES = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'].concat(PK_LAIN);
 
 /* ------------------------------------------------------------------ */
 /* Medan borang & pengesahan                                           */

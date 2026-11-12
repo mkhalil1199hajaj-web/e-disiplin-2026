@@ -10,8 +10,11 @@ const S = {
   timers: [], charts: [], unread: 0, boot: null
 };
 
-const PRIV = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA'];
-const ROLE_LABEL = { ADMIN: 'Admin', GURU_DISIPLIN: 'Guru Disiplin', PK_HEM: 'PK HEM', PENGETUA: 'Pengetua', GURU_BIASA: 'Guru Biasa' };
+const PK_LAIN = ['PK_PENTADBIRAN', 'PK_KOKURIKULUM', 'PK_PETANG'];
+const PRIV = ['ADMIN', 'GURU_DISIPLIN', 'PK_HEM', 'PENGETUA', ...PK_LAIN];
+const ROLE_LABEL = { ADMIN: 'Admin', GURU_DISIPLIN: 'Guru Disiplin', PK_HEM: 'PK HEM', PENGETUA: 'Pengetua', GURU_BIASA: 'Guru Biasa',
+  PK_PENTADBIRAN: 'PK Pentadbiran', PK_KOKURIKULUM: 'PK Kokurikulum', PK_PETANG: 'PK Petang',
+  GKMP_BAHASA: 'GKMP Bahasa', GKMP_TVET: 'GKMP TVET', GKMP_SAINS_MATEMATIK: 'GKMP Sains dan Matematik', GKMP_KEMANUSIAAN: 'GKMP Kemanusiaan' };
 const STATUS_LABEL = { DRAF: 'Draf', DIHANTAR: 'Dihantar', DALAM_SEMAKAN: 'Dalam Semakan', DALAM_TINDAKAN: 'Dalam Tindakan', SELESAI: 'Selesai', DIPULANGKAN: 'Dipulangkan' };
 const STATUS_ORDER = ['DIHANTAR', 'DALAM_SEMAKAN', 'DALAM_TINDAKAN', 'SELESAI', 'DIPULANGKAN'];
 const BULAN = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis'];
@@ -265,7 +268,7 @@ async function doLogin() {
 }
 
 function renderRegister(info) {
-  const opts = (info.jawatan || ['Guru Biasa', 'Guru Disiplin', 'PK HEM', 'Pengetua']).map(j => `<option>${esc(j)}</option>`).join('');
+  const opts = (info.jawatan || Object.values(ROLE_LABEL).filter(l => l !== 'Admin')).map(j => `<option>${esc(j)}</option>`).join('');
   showAuth(authCard('Daftar Akaun', 'Untuk guru yang belum mempunyai akaun e-DISIPLIN', `
     <form id="reg-form" class="space-y-4" novalidate>
       <div class="field"><label class="req">Nama penuh guru</label><input name="nama" class="inp" maxlength="120" autocomplete="name" required></div>
