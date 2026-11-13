@@ -1,0 +1,24 @@
+{
+  "id": "./app.html",
+  "name": "e-DISIPLIN MURID 2026",
+  "short_name": "e-DISIPLIN",
+  "description": "Sistem pelaporan kes disiplin murid sekolah.",
+  "lang": "ms",
+  "dir": "ltr",
+  "start_url": "./app.html?sumber=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1d3a",
+  "theme_color": "#0b1d3a",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Buat Laporan", "short_name": "Lapor", "url": "./app.html?sumber=pwa&view=buat", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -22,3 +22,10 @@ Sistem Pelaporan dan Pengurusan Kes Disiplin Sekolah.
 7. Jalankan senarai semak ujian peranan dalam `PANDUAN.md` §6 sebelum guna data murid sebenar.
 
 Butiran penuh: **[PANDUAN.md](PANDUAN.md)**.
+
+## PWA (boleh dipasang)
+
+- `manifest.webmanifest`, `sw.js`, `js/pwa.js`, `icons/` — app boleh dipasang dari Chrome/Edge (butang **Pasang app**) dan Safari iOS (Kongsi → Tambah ke Skrin Utama).
+- Pustaka JS dan fon disimpan dalam `vendor/` (tiada CDN kecuali log masuk Google).
+- Tailwind kini dibina sebagai `css/tailwind.css`. **Selepas menambah/menukar kelas Tailwind dalam HTML/JS, jalankan `npm install` (sekali) dan `npm run build:css`, kemudian commit `css/tailwind.css`.**
+- `sw.js`: halaman & kod = network-first (kemas kini terus sampai); `vendor/` & `icons/` = cache-first. **Naikkan `VERSI` dalam `sw.js` bila menukar fail `vendor/` atau `icons/`.** Data laporan tidak pernah di-cache.

@@ -136,7 +136,9 @@ async function renderGoogleSignIn(notice) {
     <div class="mt-5 grid grid-cols-2 gap-2 text-xs">
       <a href="https://accounts.google.com/signin/recovery" target="_blank" rel="noopener" class="text-royal-600 font-semibold hover:underline">Lupa kata laluan?</a>
       <a href="${reg ? 'app.html' : 'app.html?view=register'}" class="text-right text-royal-600 font-semibold hover:underline">${reg ? 'Sudah ada akaun? Log masuk' : 'Daftar akaun baharu'}</a>
-    </div>`));
+    </div>
+    <button type="button" class="installBtn hidden mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 hover:bg-slate-50 px-4 py-2.5 text-sm font-semibold text-navy-800"><i data-lucide="download" class="h-4 w-4"></i> Pasang app di telefon / komputer</button>`));
+  if (window.edisiplinBindInstall) window.edisiplinBindInstall();
   try { await waitForGis(); } catch (e) {
     return renderAuthMessage('Log masuk Google tidak dapat dimuatkan', 'Semak sambungan internet atau pastikan accounts.google.com tidak disekat oleh rangkaian sekolah.', 'wifi-off');
   }
@@ -332,7 +334,7 @@ function startApp() {
   startIdleWatch();
   refreshNotifBadge();
   S.timers.push(setInterval(refreshNotifBadge, 60000));
-  go('dashboard');
+  go(INITIAL_VIEW === 'buat' ? 'buat' : 'dashboard'); // pintasan PWA "Buat Laporan"
 }
 
 function renderMenu() {

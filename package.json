@@ -1,0 +1,12 @@
+{
+  "name": "e-disiplin-2026",
+  "private": true,
+  "version": "1.0.0",
+  "description": "e-DISIPLIN MURID 2026 — web app statik (GitHub Pages) + Apps Script",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i src/tailwind.css -o css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.19"
+  }
+}

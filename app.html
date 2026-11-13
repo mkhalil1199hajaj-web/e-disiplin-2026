@@ -5,31 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
   <title>e-DISIPLIN MURID 2026</title>
   <meta name="theme-color" content="#0b1d3a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="e-DISIPLIN">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="robots" content="noindex, nofollow">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            navy: { 950: '#071327', 900: '#0b1d3a', 800: '#10284f', 700: '#163667', 600: '#1d4585' },
-            royal: { 700: '#1c45a8', 600: '#2453c7', 500: '#2f66e0', 200: '#c9d8fb', 100: '#e5edfd', 50: '#f2f6fe' },
-            gold: { 600: '#b8860b', 500: '#d4a017', 400: '#e3b93d', 200: '#f3e2a6', 100: '#fbf3dc' }
-          },
-          fontFamily: { sans: ['"Plus Jakarta Sans"', 'system-ui', 'Segoe UI', 'sans-serif'] }
-        }
-      }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="vendor/chart-4.4.6.umd.js"></script>
+  <script src="vendor/sweetalert2-11.14.5.all.min.js"></script>
+  <script src="vendor/lucide-0.460.0.min.js"></script>
+  <script src="vendor/jspdf-2.5.2.umd.min.js"></script>
+  <script src="vendor/jspdf-autotable-3.8.4.min.js"></script>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/tailwind.css">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="config.js"></script>
 </head>
@@ -87,6 +78,9 @@
             <h1 id="page-title" class="text-base sm:text-lg font-bold text-navy-900 truncate">Dashboard</h1>
             <p id="page-sub" class="hidden sm:block text-xs text-slate-500 truncate"></p>
           </div>
+          <button class="installBtn hidden inline-flex items-center gap-2 rounded-lg border border-slate-200 hover:bg-slate-50 px-3 py-2 text-sm font-semibold text-navy-800" aria-label="Pasang app">
+            <i data-lucide="download" class="h-4 w-4"></i><span class="hidden md:inline">Pasang app</span>
+          </button>
           <button id="btn-notif" class="relative p-2 rounded-lg hover:bg-slate-100" aria-label="Notifikasi">
             <i data-lucide="bell" class="h-5 w-5 text-navy-800"></i>
             <span id="notif-dot" class="hidden absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center"></span>
@@ -111,13 +105,14 @@
   </div>
 
   <script>
-    var INITIAL_VIEW = new URLSearchParams(location.search).get('view') === 'register' ? 'register' : 'login';
+    var INITIAL_VIEW = (function (v) { return v === 'register' || v === 'buat' ? v : 'login'; })(new URLSearchParams(location.search).get('view'));
   </script>
   <script src="js/core.js"></script>
   <script src="js/views.js"></script>
   <script src="js/report.js"></script>
   <script src="js/admin.js"></script>
   <script src="js/pdf.js"></script>
+  <script src="js/pwa.js"></script>
   <script>document.addEventListener('DOMContentLoaded', boot);</script>
 </body>
 </html>

@@ -7,16 +7,15 @@
   <meta name="description" content="Sistem pelaporan dan pengurusan kes disiplin sekolah secara digital.">
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#0b1d3a">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d4a017' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: {
-      colors: { navy: { 950: '#071327', 900: '#0b1d3a', 800: '#10284f', 700: '#163667' }, royal: { 700: '#1c45a8', 600: '#2453c7', 500: '#2f66e0', 100: '#e5edfd' }, gold: { 500: '#d4a017', 400: '#e3b93d', 100: '#fbf3dc' } },
-      fontFamily: { sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'] } } } };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="e-DISIPLIN">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="vendor/lucide-0.460.0.min.js"></script>
+  <link rel="stylesheet" href="css/tailwind.css">
   <script src="config.js"></script>
   <style>
     body { background: #071327; }
@@ -45,7 +44,10 @@
         <div class="h-11 w-11 rounded-xl bg-gold-500/15 ring-1 ring-gold-400/40 flex items-center justify-center"><i data-lucide="shield-check" class="h-6 w-6 text-gold-400"></i></div>
         <div><p class="font-extrabold tracking-tight leading-tight">e-DISIPLIN</p><p class="text-[11px] tracking-[0.22em] text-gold-400 font-semibold">MURID 2026</p></div>
       </div>
-      <a href="panduan.html" class="hidden sm:inline-flex items-center gap-2 text-sm font-semibold text-white/75 hover:text-white"><i data-lucide="book-open" class="h-4 w-4"></i> Panduan</a>
+      <div class="flex items-center gap-4">
+        <a href="#" class="installBtn hidden inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/15 ring-1 ring-white/20 px-3 py-1.5 text-sm font-semibold"><i data-lucide="download" class="h-4 w-4"></i> Pasang app</a>
+        <a href="panduan.html" class="hidden sm:inline-flex items-center gap-2 text-sm font-semibold text-white/75 hover:text-white"><i data-lucide="book-open" class="h-4 w-4"></i> Panduan</a>
+      </div>
     </header>
 
     <main class="relative z-10 max-w-6xl mx-auto px-5 sm:px-8 pt-14 sm:pt-20 pb-16 grid lg:grid-cols-12 gap-12 items-center">
@@ -61,6 +63,7 @@
           <a id="btn-login" href="#" class="shine inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-gold-500 hover:bg-gold-400 text-navy-900 px-6 py-3.5 font-extrabold shadow-lg shadow-gold-500/20 transition"><i data-lucide="log-in" class="h-5 w-5"></i> LOG MASUK</a>
           <a id="btn-register" href="#" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-royal-600 hover:bg-royal-700 px-6 py-3.5 font-extrabold transition"><i data-lucide="user-plus" class="h-5 w-5"></i> DAFTAR AKAUN</a>
           <a href="panduan.html" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-white/5 hover:bg-white/10 ring-1 ring-white/15 px-6 py-3.5 font-extrabold transition"><i data-lucide="book-open" class="h-5 w-5"></i> PANDUAN PENGGUNA</a>
+          <a href="#" class="installBtn hidden inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-white text-navy-900 hover:bg-gold-100 px-6 py-3.5 font-extrabold transition"><i data-lucide="download" class="h-5 w-5"></i> PASANG APP</a>
         </div>
                 <p class="rise d5 mt-6 flex items-center gap-2 text-xs text-white/45"><i data-lucide="lock" class="h-3.5 w-3.5"></i> Log masuk menggunakan akaun Google anda. Akaun baharu perlu diluluskan oleh Admin.</p>
       </section>
@@ -111,5 +114,6 @@
       try { lucide.createIcons(); } catch (e) {}
     })();
   </script>
+  <script src="js/pwa.js"></script>
 </body>
 </html>

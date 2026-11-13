@@ -6,15 +6,15 @@
   <title>Panduan Pengguna · e-DISIPLIN MURID 2026</title>
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#0b1d3a">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: {
-      colors: { navy: { 950: '#071327', 900: '#0b1d3a', 800: '#10284f' }, royal: { 700: '#1c45a8', 600: '#2453c7', 100: '#e5edfd', 50: '#f2f6fe' }, gold: { 500: '#d4a017', 400: '#e3b93d', 100: '#fbf3dc' } },
-      fontFamily: { sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'] } } } };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="e-DISIPLIN">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="vendor/lucide-0.460.0.min.js"></script>
+  <link rel="stylesheet" href="css/tailwind.css">
   <script src="config.js"></script>
   <style>
     .prose-g h3 { font-weight: 800; color: #0b1d3a; margin-top: 1.25rem; margin-bottom: .4rem; }
@@ -31,7 +31,10 @@
         <span class="h-10 w-10 rounded-xl bg-gold-500/15 ring-1 ring-gold-400/40 flex items-center justify-center"><i data-lucide="shield-check" class="h-5 w-5 text-gold-400"></i></span>
         <span><span class="block font-extrabold leading-tight">e-DISIPLIN</span><span class="block text-[11px] tracking-[0.2em] text-gold-400 font-semibold">MURID 2026</span></span>
       </a>
+      <div class="flex items-center gap-2">
+      <a href="#" class="installBtn hidden inline-flex items-center gap-2 rounded-lg bg-white/10 ring-1 ring-white/20 px-3 py-2 text-sm font-semibold"><i data-lucide="download" class="h-4 w-4"></i> <span class="hidden sm:inline">Pasang app</span></a>
       <a id="btn-app" href="app.html" class="inline-flex items-center gap-2 rounded-lg bg-gold-500 text-navy-900 px-4 py-2 text-sm font-extrabold"><i data-lucide="log-in" class="h-4 w-4"></i> LOG MASUK</a>
+      </div>
     </div>
     <div class="max-w-5xl mx-auto px-5 sm:px-8 pb-10 pt-4">
       <h1 class="text-3xl sm:text-4xl font-extrabold">Panduan Pengguna</h1>
@@ -163,5 +166,6 @@
       try { lucide.createIcons(); } catch (e) {}
     })();
   </script>
+  <script src="js/pwa.js"></script>
 </body>
 </html>
