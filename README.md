@@ -29,3 +29,10 @@ Butiran penuh: **[PANDUAN.md](PANDUAN.md)**.
 - Pustaka JS dan fon disimpan dalam `vendor/` (tiada CDN kecuali log masuk Google).
 - Tailwind kini dibina sebagai `css/tailwind.css`. **Selepas menambah/menukar kelas Tailwind dalam HTML/JS, jalankan `npm install` (sekali) dan `npm run build:css`, kemudian commit `css/tailwind.css`.**
 - `sw.js`: halaman & kod = network-first (kemas kini terus sampai); `vendor/` & `icons/` = cache-first. **Naikkan `VERSI` dalam `sw.js` bila menukar fail `vendor/` atau `icons/`.** Data laporan tidak pernah di-cache.
+
+## APK Android (TWA)
+
+- `twa/twa-manifest.json` + `twa/build-twa.mjs` (Bubblewrap) → `.github/workflows/android-apk.yml` membina APK dan menerbitkannya ke GitHub Releases.
+- Link tetap: https://github.com/mkhalil1199hajaj-web/e-disiplin-2026/releases/latest/download/e-disiplin.apk
+- APK membuka PWA dalam Chrome (log masuk Google berfungsi). Kemas kini web sampai terus; APK baharu hanya perlu bila ikon/nama/twa-manifest berubah.
+- Kunci tetap: tambah secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Tanpanya, setiap build guna kunci sementara.

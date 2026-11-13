@@ -1,0 +1,124 @@
+name: Bina APK Android (TWA)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'twa/**'
+      - 'manifest.webmanifest'
+      - 'icons/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      APK_NAME: e-disiplin.apk
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Terima lesen Android SDK
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Pasang kebergantungan
+        run: npm ci
+
+      - name: Jana projek TWA
+        run: npm run build:twa
+
+      - name: Bina APK (release, belum ditandatangani)
+        working-directory: twa/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      - name: Sediakan kunci tandatangan
+        id: key
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASS" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/app.keystore"
+            echo "alias=$KEY_ALIAS" >> "$GITHUB_OUTPUT"
+            echo "::add-mask::$KS_PASS"; echo "::add-mask::$KEY_PASS"
+            echo "KS_PASS=$KS_PASS" >> "$GITHUB_ENV"; echo "KEY_PASS=$KEY_PASS" >> "$GITHUB_ENV"
+            echo "tetap=ya" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Secrets kunci tandatangan belum ditetapkan. APK ditandatangani dengan kunci sementara: kemas kini APK seterusnya perlu nyahpasang versi lama dahulu."
+            P="sementara-$(openssl rand -hex 12)"
+            echo "::add-mask::$P"
+            keytool -genkeypair -v -keystore "$RUNNER_TEMP/app.keystore" -alias edisiplin -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$P" -keypass "$P" -dname "CN=e-DISIPLIN MURID 2026, O=Sekolah, C=MY" > /dev/null
+            echo "alias=edisiplin" >> "$GITHUB_OUTPUT"
+            echo "KS_PASS=$P" >> "$GITHUB_ENV"; echo "KEY_PASS=$P" >> "$GITHUB_ENV"
+            echo "tetap=tidak" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tandatangan APK
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          IN=$(ls twa/android/app/build/outputs/apk/release/*-unsigned.apk | head -1)
+          "$BT/zipalign" -p -f 4 "$IN" aligned.apk
+          "$BT/apksigner" sign --ks "$RUNNER_TEMP/app.keystore" --ks-key-alias "${{ steps.key.outputs.alias }}" \
+            --ks-pass env:KS_PASS --key-pass env:KEY_PASS --out "$APK_NAME" aligned.apk
+          "$BT/apksigner" verify --print-certs "$APK_NAME" | tee certs.txt
+          SHA=$(keytool -list -v -keystore "$RUNNER_TEMP/app.keystore" -alias "${{ steps.key.outputs.alias }}" -storepass "$KS_PASS" | grep 'SHA256:' | head -1 | sed 's/.*SHA256: //')
+          echo "SHA256=$SHA" >> "$GITHUB_ENV"
+          echo "VERSI=1.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          rm -f "$RUNNER_TEMP/app.keystore"
+
+      - name: Ringkasan
+        run: |
+          {
+            echo "### APK e-DISIPLIN v$VERSI"
+            echo "- Kunci tetap: ${{ steps.key.outputs.tetap }}"
+            echo "- SHA-256 sijil (untuk assetlinks.json): \`$SHA256\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: e-disiplin-apk
+          path: ${{ env.APK_NAME }}
+
+      - name: Terbitkan ke GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v${{ env.VERSI }}
+          name: e-DISIPLIN APK v${{ env.VERSI }}
+          make_latest: true
+          files: ${{ env.APK_NAME }}
+          body: |
+            **Cara pasang (Android):**
+            1. Muat turun `e-disiplin.apk` di bawah.
+            2. Buka fail itu. Jika diminta, benarkan "Pasang app tidak diketahui" untuk pelayar/Fail.
+            3. Tekan **Pasang**, kemudian buka **e-DISIPLIN** dan log masuk dengan akaun Google.
+
+            Link tetap versi terbaru: https://github.com/${{ github.repository }}/releases/latest/download/e-disiplin.apk
+
+            Kunci tandatangan tetap: ${{ steps.key.outputs.tetap }}. Jika "tidak", nyahpasang versi lama sebelum memasang versi ini (data di pelayan tidak hilang).
+
+            SHA-256 sijil: `${{ env.SHA256 }}`

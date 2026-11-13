@@ -1,0 +1,54 @@
+{
+ "packageId": "io.github.mkhalil1199hajaj.edisiplin",
+ "host": "mkhalil1199hajaj-web.github.io",
+ "name": "e-DISIPLIN MURID 2026",
+ "launcherName": "e-DISIPLIN",
+ "display": "standalone",
+ "themeColor": "#0B1D3A",
+ "themeColorDark": "#000000",
+ "navigationColor": "#000000",
+ "navigationColorDark": "#000000",
+ "navigationDividerColor": "#000000",
+ "navigationDividerColorDark": "#000000",
+ "backgroundColor": "#0B1D3A",
+ "enableNotifications": false,
+ "startUrl": "/e-disiplin-2026/app.html?sumber=pwa",
+ "iconUrl": "https://mkhalil1199hajaj-web.github.io/e-disiplin-2026/icons/icon-512.png",
+ "maskableIconUrl": "https://mkhalil1199hajaj-web.github.io/e-disiplin-2026/icons/maskable-512.png",
+ "splashScreenFadeOutDuration": 300,
+ "signingKey": {
+  "path": "./android.keystore",
+  "alias": "edisiplin"
+ },
+ "appVersionName": "1.0.0",
+ "appVersionCode": 1,
+ "shortcuts": [
+  {
+   "name": "Buat Laporan",
+   "shortName": "Lapor",
+   "url": "https://mkhalil1199hajaj-web.github.io/e-disiplin-2026/app.html?sumber=pwa&view=buat",
+   "chosenIconUrl": "https://mkhalil1199hajaj-web.github.io/e-disiplin-2026/icons/icon-192.png"
+  }
+ ],
+ "generatorApp": "unknown",
+ "webManifestUrl": "https://mkhalil1199hajaj-web.github.io/e-disiplin-2026/manifest.webmanifest",
+ "fallbackType": "customtabs",
+ "features": {},
+ "alphaDependencies": {
+  "enabled": false
+ },
+ "enableSiteSettingsShortcut": true,
+ "isChromeOSOnly": false,
+ "isMetaQuest": false,
+ "fullScopeUrl": "https://mkhalil1199hajaj-web.github.io/e-disiplin-2026/",
+ "minSdkVersion": 21,
+ "orientation": "any",
+ "fingerprints": [],
+ "additionalTrustedOrigins": [],
+ "retainedBundles": [],
+ "protocolHandlers": [],
+ "fileHandlers": [],
+ "launchHandlerClientMode": "",
+ "displayOverride": [],
+ "appVersion": "1.0.0"
+}
