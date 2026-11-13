@@ -235,21 +235,33 @@ function sheet_(name) {
   return sh;
 }
 
+/** Teks yang Google Sheets akan tukar sendiri (masa, tarikh, nombor bermula 0/+). Simpan sebagai teks. */
+var AUTO_PARSE_RE_ = /^(\d{1,2}:\d{2}(:\d{2})?|\d{4}-\d{2}-\d{2}|[+0]\d[\d\s-]*)$/;
+/** Lajur tarikh sahaja (tanpa masa). */
+var DATE_ONLY_COLS_ = { TarikhKejadian: 1, TarikhTindakan: 1 };
+
 function toCell_(v) {
   if (v === null || v === undefined) return '';
   if (v instanceof Date) return Utilities.formatDate(v, APP.TZ, "yyyy-MM-dd'T'HH:mm:ss");
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
   var s = String(v);
   // Halang formula / CSV injection.
-  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  if (/^[=+\-@]/.test(s) && !AUTO_PARSE_RE_.test(s)) s = "'" + s;
+  // Elak Sheets menukar "17:00" jadi masa 1899, "2026-10-25" jadi tarikh, "0123" jadi 123.
+  else if (AUTO_PARSE_RE_.test(s)) s = "'" + s;
   return s;
 }
 
-function fromCell_(v) {
+function fromCell_(v, h) {
   if (v === null || v === undefined) return '';
-  if (v instanceof Date) return Utilities.formatDate(v, APP.TZ, "yyyy-MM-dd'T'HH:mm:ss");
+  if (v instanceof Date) {
+    if (v.getFullYear() < 1900) return Utilities.formatDate(v, APP.TZ, 'HH:mm'); // sel masa sahaja (data lama)
+    var iso = Utilities.formatDate(v, APP.TZ, "yyyy-MM-dd'T'HH:mm:ss");
+    if (h && DATE_ONLY_COLS_[h] && /T00:00:00$/.test(iso)) return iso.slice(0, 10);
+    return iso;
+  }
   var s = String(v);
-  if (/^'[=+\-@]/.test(s)) s = s.slice(1);
+  if (/^'[=+\-@]/.test(s) || (s.charAt(0) === "'" && AUTO_PARSE_RE_.test(s.slice(1)))) s = s.slice(1);
   return s;
 }
 
@@ -264,7 +276,7 @@ function table_(name) {
     var empty = true;
     for (var j = 0; j < headers.length; j++) {
       if (!headers[j]) continue;
-      o[headers[j]] = fromCell_(values[i][j]);
+      o[headers[j]] = fromCell_(values[i][j], headers[j]);
       if (o[headers[j]] !== '') empty = false;
     }
     if (!empty) rows.push(o);
@@ -298,7 +310,7 @@ function update_(name, rowNum, patch) {
   sheet_(name).getRange(rowNum, 1, 1, t.headers.length).setValues([merged]);
   delete DBC_.t[name];
   var out = {};
-  t.headers.forEach(function (h, idx) { out[h] = fromCell_(merged[idx]); });
+  t.headers.forEach(function (h, idx) { out[h] = fromCell_(merged[idx], h); });
   out._row = rowNum;
   return out;
 }
