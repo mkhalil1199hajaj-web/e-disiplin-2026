@@ -41,7 +41,7 @@
  "isChromeOSOnly": false,
  "isMetaQuest": false,
  "fullScopeUrl": "https://mkhalil1199hajaj-web.github.io/e-disiplin-2026/",
- "minSdkVersion": 21,
+ "minSdkVersion": 24,
  "orientation": "any",
  "fingerprints": [],
  "additionalTrustedOrigins": [],
